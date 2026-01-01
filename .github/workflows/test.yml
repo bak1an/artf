@@ -1,0 +1,30 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go stable
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Check go formatting
+        run: |
+          make fmt
+          git diff --exit-code
+
+      - name: Run golang checks and tests
+        run: make check
