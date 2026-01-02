@@ -58,18 +58,15 @@ func main() {
 	}
 	defer db.Close()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/ping", handler.Ping)
-	mux.HandleFunc("/version", handler.Version)
 	server := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", *host, *port),
-		Handler: mux,
+		Handler: createMux(db),
 	}
 	slog.Info("starting server", "address", server.Addr)
 
-	// Setup graceful shutdown on SIGINT
+	// Setup graceful shutdown on SIGINT or SIGTERM
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGINT)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	// Start server in a goroutine
 	serverErr := make(chan error, 1)
@@ -95,6 +92,13 @@ func main() {
 		}
 		slog.Info("server shutdown complete")
 	}
+}
+
+func createMux(db *bolt.DB) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ping", handler.Ping)
+	mux.HandleFunc("/version", handler.Version)
+	return mux
 }
 
 func checkDirWritable(dir string) error {
