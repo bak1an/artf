@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/bak1an/artf/handler"
@@ -64,9 +67,33 @@ func main() {
 	}
 	slog.Info("starting server", "address", server.Addr)
 
-	if err := server.ListenAndServe(); err != nil {
+	// Setup graceful shutdown on SIGINT
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGINT)
+
+	// Start server in a goroutine
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErr <- err
+		}
+	}()
+
+	// Wait for either SIGINT or server error
+	select {
+	case err := <-serverErr:
 		slog.Error("cannot start server", "error", err)
 		return
+	case sig := <-sigChan:
+		slog.Info("received signal, shutting down gracefully", "signal", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			slog.Error("server shutdown error", "error", err)
+			return
+		}
+		slog.Info("server shutdown complete")
 	}
 }
 
