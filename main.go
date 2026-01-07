@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/bak1an/artf/handler"
 	buildInfo "github.com/bak1an/artf/version"
+	"github.com/coreos/go-systemd/v22/activation"
+	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/spf13/pflag"
 	bolt "go.etcd.io/bbolt"
 )
@@ -30,6 +33,7 @@ func main() {
 	dataDir := pflag.StringP("data", "d", "", "data directory, must exist and be writable")
 	port := pflag.IntP("port", "p", 8365, "port to listen on")
 	host := pflag.StringP("host", "h", "127.0.0.1", "host to listen on")
+	systemd := pflag.BoolP("systemd", "s", false, "get listen socket from systemd")
 
 	pflag.Parse()
 
@@ -58,8 +62,26 @@ func main() {
 	}
 	defer db.Close()
 
+	var listener net.Listener
+
+	if *systemd {
+		listener, err = systemdListener()
+		if err != nil {
+			slog.Error("cannot get listen socket from systemd", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		addr := fmt.Sprintf("%s:%d", *host, *port)
+		slog.Info("listening on address", "address", addr)
+		listener, err = net.Listen("tcp", addr)
+		if err != nil {
+			slog.Error("cannot listen on address", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("listening on address", "address", addr)
+	}
+
 	server := &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", *host, *port),
 		Handler: createMux(db),
 	}
 	slog.Info("starting server", "address", server.Addr)
@@ -71,10 +93,12 @@ func main() {
 	// Start server in a goroutine
 	serverErr := make(chan error, 1)
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		}
 	}()
+
+	daemon.SdNotify(false, daemon.SdNotifyReady)
 
 	// Wait for either SIGINT or server error
 	select {
@@ -83,6 +107,9 @@ func main() {
 		return
 	case sig := <-sigChan:
 		slog.Info("received signal, shutting down gracefully", "signal", sig)
+
+		daemon.SdNotify(false, daemon.SdNotifyStopping)
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
@@ -125,4 +152,22 @@ func checkDirWritable(dir string) error {
 	}
 
 	return nil
+}
+
+func systemdListener() (net.Listener, error) {
+	listeners, err := activation.Listeners()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(listeners) == 0 {
+		return nil, fmt.Errorf("no listeners provided by systemd")
+	}
+
+	if len(listeners) > 1 {
+		return nil, fmt.Errorf("multiple listeners provided by systemd, only one is supported")
+	}
+
+	return listeners[0], nil
 }
