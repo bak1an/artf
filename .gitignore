@@ -35,5 +35,3 @@ go.work.sum
 artf
 dist/
 
-# tmp
-tmp/
