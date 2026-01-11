@@ -12,11 +12,9 @@ import (
 )
 
 const (
-	dbFilename        = "artf.db"
-	dbFileMode        = 0600
-	controlSocket     = "artf.sock"
-	controlSocketMode = 0660
-	dbOpenTimeout     = 5 * time.Second
+	dbFilename    = "artf0.db"
+	dbFileMode    = 0600
+	dbOpenTimeout = 5 * time.Second
 )
 
 var rootCmd = &cobra.Command{
@@ -71,6 +69,13 @@ func initializeConfig(cmd *cobra.Command) error {
 	if err = checkDirWritable(data); err != nil {
 		return fmt.Errorf("data directory is not writable: %v", err)
 	}
+
+	data, err = filepath.Abs(data)
+	if err != nil {
+		return fmt.Errorf("cannot get absolute path of data directory: %v", err)
+	}
+
+	viper.Set("data", data)
 
 	return nil
 }
