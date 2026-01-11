@@ -1,21 +1,44 @@
 package admin
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/bak1an/artf/handler"
 	"go.etcd.io/bbolt"
 )
 
+const (
+	controlSocket     = "artf.sock"
+	controlSocketMode = 0660
+)
+
 type AdminServer struct {
-	listener net.Listener
-	db       *bbolt.DB
-	srv      *http.Server
+	socketPath string
+	listener   net.Listener
+	db         *bbolt.DB
+	srv        *http.Server
 }
 
-func NewAdminServer(listener net.Listener, db *bbolt.DB) *AdminServer {
+func NewAdminServer(dataDir string, db *bbolt.DB) (*AdminServer, error) {
+	socketPath := filepath.Join(dataDir, controlSocket)
+
+	if err := cleanSocket(socketPath); err != nil {
+		return nil, fmt.Errorf("cannot remove existing socket: %w", err)
+	}
+
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot listen on socket: %w", err)
+	}
+
+	if err := os.Chmod(socketPath, controlSocketMode); err != nil {
+		return nil, fmt.Errorf("cannot change socket file mode: %w", err)
+	}
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /ping", handler.Ping)
@@ -26,10 +49,11 @@ func NewAdminServer(listener net.Listener, db *bbolt.DB) *AdminServer {
 	}
 
 	return &AdminServer{
-		listener: listener,
-		db:       db,
-		srv:      srv,
-	}
+		socketPath: socketPath,
+		listener:   listener,
+		db:         db,
+		srv:        srv,
+	}, nil
 }
 
 func (s *AdminServer) Serve() error {
@@ -40,5 +64,24 @@ func (s *AdminServer) Serve() error {
 // No need for graceful shutdown in admin server
 func (s *AdminServer) Close() error {
 	slog.Info("admin server closing", "socket", s.listener.Addr())
-	return s.srv.Close()
+	err := s.srv.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close admin server: %w", err)
+	}
+	err = cleanSocket(s.socketPath)
+	if err != nil {
+		return fmt.Errorf("failed to clean socket: %w", err)
+	}
+	return nil
+}
+
+func cleanSocket(socketPath string) error {
+	if _, err := os.Stat(socketPath); err == nil || !os.IsNotExist(err) {
+		slog.Debug("removing existing socket file", "socket", socketPath)
+		err := os.Remove(socketPath)
+		if err != nil {
+			return fmt.Errorf("cannot remove socket file: %w", err)
+		}
+	}
+	return nil
 }

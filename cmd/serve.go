@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
-	"net"
+	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/bak1an/artf/admin"
 	"github.com/spf13/cobra"
@@ -22,16 +24,41 @@ var serveCmd = &cobra.Command{
 
 		db, err := openDatabase(data)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot open database: %w", err)
 		}
 		defer db.Close()
 
-		adminServer, err := prepareAdminServer(data, db)
+		adminServer, err := admin.NewAdminServer(data, db)
 		if err != nil {
-			return fmt.Errorf("cannot initialize admin server: %v", err)
+			return fmt.Errorf("cannot initialize admin server: %w", err)
 		}
 
-		return adminServer.Serve()
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+		adminErr := make(chan error, 1)
+
+		go func() {
+			if err := adminServer.Serve(); err != nil && err != http.ErrServerClosed {
+				slog.Error("cannot run admin server, crashing", "error", err)
+				adminErr <- err
+			}
+		}()
+
+		select {
+		case <-stop:
+			slog.Info("shutting down")
+		case err := <-adminErr:
+			slog.Error("failed to run admin server, crashing", "error", err)
+			return err
+		}
+
+		err = adminServer.Close()
+		if err != nil {
+			slog.Error("failed to close admin server", "error", err)
+		}
+
+		return nil
 	},
 }
 
@@ -40,32 +67,11 @@ func init() {
 }
 
 func openDatabase(data string) (*bbolt.DB, error) {
-	db, err := bbolt.Open(filepath.Join(data, dbFilename), dbFileMode, &bbolt.Options{Timeout: dbOpenTimeout})
+	dbPath := filepath.Join(data, dbFilename)
+	slog.Info("opening database", "path", dbPath)
+	db, err := bbolt.Open(dbPath, dbFileMode, &bbolt.Options{Timeout: dbOpenTimeout})
 	if err != nil {
-		return nil, fmt.Errorf("cannot open database: %v", err)
+		return nil, fmt.Errorf("cannot open database: %w", err)
 	}
 	return db, nil
-}
-
-func prepareAdminServer(data string, db *bbolt.DB) (*admin.AdminServer, error) {
-	socketPath := filepath.Join(data, controlSocket)
-
-	if _, err := os.Stat(socketPath); err == nil {
-		slog.Debug("removing existing socket file", "socket", socketPath)
-		err := os.Remove(socketPath)
-		if err != nil {
-			return nil, fmt.Errorf("cannot remove socket file: %v", err)
-		}
-	}
-
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot listen on socket: %v", err)
-	}
-
-	if err := os.Chmod(socketPath, controlSocketMode); err != nil {
-		return nil, fmt.Errorf("cannot change socket file mode: %v", err)
-	}
-
-	return admin.NewAdminServer(listener, db), nil
 }
