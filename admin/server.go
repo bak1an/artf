@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bak1an/artf/handler"
+	"github.com/bak1an/artf/server/handler"
 	"go.etcd.io/bbolt"
 )
 

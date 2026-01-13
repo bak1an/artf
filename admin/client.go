@@ -66,7 +66,7 @@ func (c *AdminClient) Version() (version.BuildInfo, error) {
 
 func (c *AdminClient) get(path string) ([]byte, error) {
 	resp, err := c.client.Get("http://unix" + path)
-	if err != nil {
+	if err != nil || resp == nil {
 		return nil, fmt.Errorf("cannot get %s: %w", path, err)
 	}
 	defer resp.Body.Close()
