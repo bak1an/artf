@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/bak1an/artf/admin"
 	"github.com/spf13/cobra"
@@ -18,7 +17,7 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("cannot create admin client: %w", err)
 		}
-		slog.Info("Checking status of admin server", "path", adminClient.Path())
+		fmt.Printf("Checking status of admin server at %s\n", adminClient.Path())
 
 		err = adminClient.Ping()
 		if err != nil {
@@ -30,12 +29,10 @@ var statusCmd = &cobra.Command{
 			return fmt.Errorf("cannot get running version: %w", err)
 		}
 
-		fmt.Printf("Admin server is running at %s\n", adminClient.Path())
 		fmt.Printf("Running version: %s\n", v.GitTag)
 		fmt.Printf("Build time: %s\n", v.BuildTime)
 		fmt.Printf("Git branch: %s\n", v.GitBranch)
 		fmt.Printf("Git revision: %s\n", v.GitRev)
-		fmt.Printf("Go version: %s\n", v.GoVersion)
 
 		return nil
 	},

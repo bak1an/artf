@@ -11,8 +11,8 @@ type BuildInfo struct {
 	BuildTime string `json:"build_time"`
 	GitBranch string `json:"git_branch"`
 	GitRev    string `json:"git_rev"`
-	GoVersion string `json:"go_version"`
 	GitTag    string `json:"git_tag"`
+	GoVersion string `json:"-"`
 }
 
 func GetBuildInfo() BuildInfo {
