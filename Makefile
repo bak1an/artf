@@ -1,10 +1,10 @@
 BINARY=artf
 PKG=github.com/bak1an/artf
 
-BUILD=$(shell date +%FT%T%z)
-GIT_REV=$(shell git rev-parse HEAD)
-GIT_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
-GIT_TAG=$(shell git describe --tags --abbrev=0)
+BUILD := $(shell date +%FT%T%z)
+GIT_REV := $(shell git rev-parse HEAD)
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+GIT_TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "untagged")
 
 LDFLAGS=-ldflags "-s -w -X ${PKG}/version.build=${BUILD} -X ${PKG}/version.gitRev=${GIT_REV} -X ${PKG}/version.gitBranch=${GIT_BRANCH} -X ${PKG}/version.gitTag=${GIT_TAG}"
 BUILDFLAGS=-trimpath
