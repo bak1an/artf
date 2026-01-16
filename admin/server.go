@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bak1an/artf/server"
 	"github.com/bak1an/artf/server/handler"
 	"go.etcd.io/bbolt"
 )
@@ -44,8 +45,16 @@ func NewAdminServer(dataDir string, db *bbolt.DB) (*AdminServer, error) {
 	mux.HandleFunc("GET /ping", handler.Ping)
 	mux.HandleFunc("GET /version", handler.Version)
 
+	baseLogger := slog.Default().With("server", "admin")
+
+	h := server.RecoverMiddleware( // recover panics
+		server.RequestContextLogger(baseLogger)( // add logger to the context
+			server.LoggingMiddleware(mux), // log response times via above logger
+		),
+	)
+
 	srv := &http.Server{
-		Handler: mux,
+		Handler: h,
 	}
 
 	return &AdminServer{

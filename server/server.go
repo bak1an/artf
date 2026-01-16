@@ -23,8 +23,18 @@ func NewServer(dataDir string, listener net.Listener, db *bbolt.DB) (*Server, er
 	mux.HandleFunc("GET /ping", handler.Ping)
 	mux.HandleFunc("GET /version", handler.Version)
 
+	baseLogger := slog.Default().With("server", "api")
+
+	h := RecoverMiddleware( // recover panics
+		RequestID( // add request id
+			RequestContextLogger(baseLogger)( // add logger to the context
+				LoggingMiddleware(mux), // log response times via above logger
+			),
+		),
+	)
+
 	srv := &http.Server{
-		Handler: mux,
+		Handler: h,
 	}
 
 	return &Server{listener: listener, db: db, srv: srv}, nil
