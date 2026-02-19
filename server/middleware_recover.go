@@ -6,7 +6,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/bak1an/artf/server/ctxlog"
+	"github.com/bak1an/artf/internal/ctxlog"
 )
 
 // recovers panics

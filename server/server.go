@@ -7,17 +7,17 @@ import (
 	"net/http"
 
 	"github.com/bak1an/artf/server/handler"
-	"go.etcd.io/bbolt"
+	"github.com/bak1an/artf/store"
 )
 
 type Server struct {
 	listener net.Listener
 	dataDir  string
-	db       *bbolt.DB
+	db       store.Store
 	srv      *http.Server
 }
 
-func NewServer(dataDir string, listener net.Listener, db *bbolt.DB) (*Server, error) {
+func NewServer(dataDir string, listener net.Listener, db store.Store) (*Server, error) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /ping", handler.Ping)

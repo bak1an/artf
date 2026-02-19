@@ -10,7 +10,7 @@ import (
 
 	"github.com/bak1an/artf/server"
 	"github.com/bak1an/artf/server/handler"
-	"go.etcd.io/bbolt"
+	"github.com/bak1an/artf/store"
 )
 
 const (
@@ -21,11 +21,11 @@ const (
 type AdminServer struct {
 	socketPath string
 	listener   net.Listener
-	db         *bbolt.DB
+	db         store.Store
 	srv        *http.Server
 }
 
-func NewAdminServer(dataDir string, db *bbolt.DB) (*AdminServer, error) {
+func NewAdminServer(dataDir string, db store.Store) (*AdminServer, error) {
 	socketPath := filepath.Join(dataDir, controlSocket)
 
 	if err := cleanSocket(socketPath); err != nil {

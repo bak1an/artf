@@ -14,6 +14,7 @@ import (
 
 	"github.com/bak1an/artf/admin"
 	"github.com/bak1an/artf/server"
+	"github.com/bak1an/artf/store/bblt"
 	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/spf13/cobra"
@@ -34,25 +35,33 @@ var serveCmd = &cobra.Command{
 
 		cmd.SilenceUsage = true
 
-		db, err := openDatabase(data)
+		bboltDB, err := openDatabase(data)
 		if err != nil {
-			return fmt.Errorf("cannot open database: %w", err)
+			return fmt.Errorf("failed to open database: %w", err)
+		}
+
+		db, err := bblt.NewBboltStore(bboltDB)
+		if err != nil {
+			if err := bboltDB.Close(); err != nil {
+				slog.Error("failed to close database after error", "error", err)
+			}
+			return fmt.Errorf("failed to initialize database: %w", err)
 		}
 		defer db.Close()
 
 		adminServer, err := admin.NewAdminServer(data, db)
 		if err != nil {
-			return fmt.Errorf("cannot initialize admin server: %w", err)
+			return fmt.Errorf("failed to initialize admin server: %w", err)
 		}
 
 		listener, err := getListener(cmd)
 		if err != nil {
-			return fmt.Errorf("cannot get listener: %w", err)
+			return fmt.Errorf("failed to get listener: %w", err)
 		}
 
 		srv, err := server.NewServer(data, listener, db)
 		if err != nil {
-			return fmt.Errorf("cannot initialize server: %w", err)
+			return fmt.Errorf("failed to initialize server: %w", err)
 		}
 
 		stop := make(chan os.Signal, 1)
@@ -63,14 +72,12 @@ var serveCmd = &cobra.Command{
 
 		go func() {
 			if err := adminServer.Serve(); err != nil && err != http.ErrServerClosed {
-				slog.Error("cannot run admin server, crashing", "error", err)
 				adminErr <- err
 			}
 		}()
 
 		go func() {
 			if err := srv.Serve(); err != nil && err != http.ErrServerClosed {
-				slog.Error("cannot run server, crashing", "error", err)
 				serverErr <- err
 			}
 		}()

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bak1an/artf/server/ctxlog"
-	"github.com/bak1an/artf/server/rid"
+	"github.com/bak1an/artf/internal/ctxlog"
+	"github.com/bak1an/artf/internal/rid"
 )
 
 // quickly intercept response status code.

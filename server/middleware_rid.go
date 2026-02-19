@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bak1an/artf/server/rid"
+	"github.com/bak1an/artf/internal/rid"
 )
 
 const RequestIDHeader = "X-Request-Id"
