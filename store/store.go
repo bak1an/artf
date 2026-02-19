@@ -19,11 +19,11 @@ type Store interface {
 
 type APIKeyStore interface {
 	Create(ctx context.Context, key *APIKey) error
-	Get(ctx context.Context, id string) (*APIKey, error)
+	Get(ctx context.Context, id uint64) (*APIKey, error)
 	GetByKey(ctx context.Context, keyHash string) (*APIKey, error)
-	List(ctx context.Context, projectID string) ([]*APIKey, error)
-	Delete(ctx context.Context, id string) error
-	UpdateLastUsed(ctx context.Context, id string, lastUsed time.Time) error
+	List(ctx context.Context) ([]*APIKey, error)
+	Delete(ctx context.Context, id uint64) error
+	UpdateLastUsed(ctx context.Context, id uint64, lastUsed time.Time) error
 }
 
 type RepoStore interface {
