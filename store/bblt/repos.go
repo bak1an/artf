@@ -17,12 +17,12 @@ func (b *bboltRepoStore) Create(ctx context.Context, repo *store.Repo) error {
 }
 
 // Delete implements [store.RepoStore].
-func (b *bboltRepoStore) Delete(ctx context.Context, id string) error {
+func (b *bboltRepoStore) Delete(ctx context.Context, id uint64) error {
 	panic("unimplemented")
 }
 
 // Get implements [store.RepoStore].
-func (b *bboltRepoStore) Get(ctx context.Context, id string) (*store.Repo, error) {
+func (b *bboltRepoStore) Get(ctx context.Context, id uint64) (*store.Repo, error) {
 	panic("unimplemented")
 }
 

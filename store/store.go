@@ -28,12 +28,12 @@ type APIKeyStore interface {
 
 type RepoStore interface {
 	Create(ctx context.Context, repo *Repo) error
-	Get(ctx context.Context, id string) (*Repo, error)
+	Get(ctx context.Context, id uint64) (*Repo, error)
 	GetByName(ctx context.Context, name string) (*Repo, error)
 	GetByPath(ctx context.Context, path string) (*Repo, error)
 	List(ctx context.Context) ([]*Repo, error)
 	Update(ctx context.Context, repo *Repo) error
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type APIKey struct {
