@@ -10,9 +10,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var keysCreateCmd = &cobra.Command{
-	Use:     "create",
-	Aliases: []string{"new"},
+var keysNewCmd = &cobra.Command{
+	Use:     "new",
+	Aliases: []string{"create"},
 	Short:   "Create a new key",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		data := viper.GetString("data")
@@ -80,5 +80,5 @@ var keysCreateCmd = &cobra.Command{
 }
 
 func init() {
-	keysCmd.AddCommand(keysCreateCmd)
+	keyCmd.AddCommand(keysNewCmd)
 }

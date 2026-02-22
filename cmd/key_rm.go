@@ -9,9 +9,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var keysDeleteCmd = &cobra.Command{
-	Use:     "delete",
-	Aliases: []string{"rm"},
+var keysRmCmd = &cobra.Command{
+	Use:     "rm",
+	Aliases: []string{"delete"},
 	Short:   "Delete a key",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		data := viper.GetString("data")
@@ -78,5 +78,5 @@ var keysDeleteCmd = &cobra.Command{
 }
 
 func init() {
-	keysCmd.AddCommand(keysDeleteCmd)
+	keyCmd.AddCommand(keysRmCmd)
 }

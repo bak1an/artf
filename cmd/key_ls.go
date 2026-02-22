@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var keysListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
+var keysLsCmd = &cobra.Command{
+	Use:     "ls",
+	Aliases: []string{"list"},
 	Short:   "List all keys",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		data := viper.GetString("data")
@@ -37,5 +37,5 @@ var keysListCmd = &cobra.Command{
 }
 
 func init() {
-	keysCmd.AddCommand(keysListCmd)
+	keyCmd.AddCommand(keysLsCmd)
 }

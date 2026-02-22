@@ -10,13 +10,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var keysCmd = &cobra.Command{
-	Use:   "keys",
+var keyCmd = &cobra.Command{
+	Use:   "key",
 	Short: "Manage keys",
 }
 
 func init() {
-	rootCmd.AddCommand(keysCmd)
+	rootCmd.AddCommand(keyCmd)
 }
 
 func renderKeysTable(keys []*admin.Key) {
