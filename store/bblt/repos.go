@@ -32,7 +32,7 @@ func loadRepo(bucket *bbolt.Bucket, id uint64) (*store.Repo, error) {
 	encodedKey := u64tob(id)
 	data := bucket.Get(encodedKey)
 	if data == nil {
-		return nil, fmt.Errorf("repo not found")
+		return nil, store.ErrNotFound
 	}
 
 	var repo store.Repo
@@ -46,8 +46,8 @@ func loadRepo(bucket *bbolt.Bucket, id uint64) (*store.Repo, error) {
 
 // Create implements [store.RepoStore].
 func (b *bboltRepoStore) Create(ctx context.Context, repo *store.Repo) error {
-	log := ctxlog.From(ctx)
-	log.Info("creating repo", "repoName", repo.Name)
+	logger := ctxlog.From(ctx)
+	logger.Info("creating repo", "repoName", repo.Name)
 
 	err := b.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(reposBucket)
@@ -60,7 +60,7 @@ func (b *bboltRepoStore) Create(ctx context.Context, repo *store.Repo) error {
 			return err
 		}
 
-		log.Info("next repo ID", "id", nextId)
+		logger.Info("next repo ID", "id", nextId)
 		repo.ID = nextId
 
 		encodedKey := u64tob(repo.ID)
@@ -75,7 +75,7 @@ func (b *bboltRepoStore) Create(ctx context.Context, repo *store.Repo) error {
 			return err
 		}
 
-		log.Info("repo created", "id", repo.ID)
+		logger.Info("repo created", "id", repo.ID)
 
 		idxBucket := tx.Bucket(indexBucket)
 		if idxBucket == nil {
@@ -97,8 +97,8 @@ func (b *bboltRepoStore) Create(ctx context.Context, repo *store.Repo) error {
 
 // Delete implements [store.RepoStore].
 func (b *bboltRepoStore) Delete(ctx context.Context, id uint64) error {
-	log := ctxlog.From(ctx)
-	log.Info("deleting repo", "id", id)
+	logger := ctxlog.From(ctx)
+	logger.Info("deleting repo", "id", id)
 
 	err := b.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(reposBucket)
@@ -128,7 +128,7 @@ func (b *bboltRepoStore) Delete(ctx context.Context, id uint64) error {
 			return err
 		}
 
-		log.Info("repo deleted", "id", id)
+		logger.Info("repo deleted", "id", id)
 
 		return nil
 	})
@@ -137,8 +137,8 @@ func (b *bboltRepoStore) Delete(ctx context.Context, id uint64) error {
 
 // Get implements [store.RepoStore].
 func (b *bboltRepoStore) Get(ctx context.Context, id uint64) (*store.Repo, error) {
-	log := ctxlog.From(ctx)
-	log.Info("getting repo", "id", id)
+	logger := ctxlog.From(ctx)
+	logger.Info("getting repo", "id", id)
 
 	var repo *store.Repo
 
@@ -160,8 +160,8 @@ func (b *bboltRepoStore) Get(ctx context.Context, id uint64) (*store.Repo, error
 
 // GetByName implements [store.RepoStore].
 func (b *bboltRepoStore) GetByName(ctx context.Context, name string) (*store.Repo, error) {
-	log := ctxlog.From(ctx)
-	log.Info("getting repo by name", "name", name)
+	logger := ctxlog.From(ctx)
+	logger.Info("getting repo by name", "name", name)
 
 	var repo *store.Repo
 
@@ -173,9 +173,10 @@ func (b *bboltRepoStore) GetByName(ctx context.Context, name string) (*store.Rep
 		indexKey := repoNameIndexKey(name)
 		data := idxBucket.Get(indexKey)
 		if data == nil {
-			return fmt.Errorf("repo not found")
+			return store.ErrNotFound
 		}
 		if len(data) != 8 {
+			logger.Warn("corrupted index entry: expected 8 bytes, got %d", "len", len(data))
 			return fmt.Errorf("corrupted index entry: expected 8 bytes, got %d", len(data))
 		}
 
@@ -197,8 +198,8 @@ func (b *bboltRepoStore) GetByName(ctx context.Context, name string) (*store.Rep
 
 // GetByPath implements [store.RepoStore].
 func (b *bboltRepoStore) GetByPath(ctx context.Context, path string) (*store.Repo, error) {
-	log := ctxlog.From(ctx)
-	log.Info("getting repo by path", "path", path)
+	logger := ctxlog.From(ctx)
+	logger.Info("getting repo by path", "path", path)
 
 	var repo *store.Repo
 
@@ -210,9 +211,10 @@ func (b *bboltRepoStore) GetByPath(ctx context.Context, path string) (*store.Rep
 		indexKey := repoPathIndexKey(path)
 		data := idxBucket.Get(indexKey)
 		if data == nil {
-			return fmt.Errorf("repo not found")
+			return store.ErrNotFound
 		}
 		if len(data) != 8 {
+			logger.Warn("corrupted index entry: expected 8 bytes, got %d", "len", len(data))
 			return fmt.Errorf("corrupted index entry: expected 8 bytes, got %d", len(data))
 		}
 
@@ -234,7 +236,7 @@ func (b *bboltRepoStore) GetByPath(ctx context.Context, path string) (*store.Rep
 
 // List implements [store.RepoStore].
 func (b *bboltRepoStore) List(ctx context.Context) ([]*store.Repo, error) {
-	log := ctxlog.From(ctx)
+	logger := ctxlog.From(ctx)
 	var repos []*store.Repo
 
 	err := b.db.View(func(tx *bbolt.Tx) error {
@@ -245,7 +247,7 @@ func (b *bboltRepoStore) List(ctx context.Context) ([]*store.Repo, error) {
 
 		return bucket.ForEach(func(k, v []byte) error {
 			if len(k) != 8 || v == nil {
-				log.Warn("skipping unexpected entry in repos bucket", "keyLen", len(k))
+				logger.Warn("skipping unexpected entry in repos bucket", "keyLen", len(k))
 				return nil
 			}
 			var repo store.Repo
@@ -262,8 +264,8 @@ func (b *bboltRepoStore) List(ctx context.Context) ([]*store.Repo, error) {
 
 // Update implements [store.RepoStore].
 func (b *bboltRepoStore) Update(ctx context.Context, repo *store.Repo) error {
-	log := ctxlog.From(ctx)
-	log.Info("updating repo", "id", repo.ID)
+	logger := ctxlog.From(ctx)
+	logger.Info("updating repo", "id", repo.ID)
 
 	return b.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(reposBucket)
@@ -306,7 +308,7 @@ func (b *bboltRepoStore) Update(ctx context.Context, repo *store.Repo) error {
 			return err
 		}
 
-		log.Info("repo updated", "id", repo.ID)
+		logger.Info("repo updated", "id", repo.ID)
 
 		return nil
 	})

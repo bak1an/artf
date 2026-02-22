@@ -137,8 +137,8 @@ func (b *bboltAPIKeyStore) Get(ctx context.Context, id uint64) (*store.APIKey, e
 
 // GetByKey implements [store.APIKeyStore].
 func (b *bboltAPIKeyStore) GetByKey(ctx context.Context, keyHash string) (*store.APIKey, error) {
-	log := ctxlog.From(ctx)
-	log.Info("getting API key by key hash", "keyHash", keyHash)
+	logger := ctxlog.From(ctx)
+	logger.Info("getting API key by key hash", "keyHash", keyHash)
 
 	var key *store.APIKey
 
@@ -150,9 +150,10 @@ func (b *bboltAPIKeyStore) GetByKey(ctx context.Context, keyHash string) (*store
 		indexKey := apiKeyIndexKey([]byte(keyHash))
 		data := idxBucket.Get(indexKey)
 		if data == nil {
-			return fmt.Errorf("API key not found")
+			return store.ErrNotFound
 		}
 		if len(data) != 8 {
+			logger.Warn("corrupted index entry: expected 8 bytes, got %d", "len", len(data))
 			return fmt.Errorf("corrupted index entry: expected 8 bytes, got %d", len(data))
 		}
 
@@ -175,7 +176,7 @@ func (b *bboltAPIKeyStore) GetByKey(ctx context.Context, keyHash string) (*store
 
 // List implements [store.APIKeyStore].
 func (b *bboltAPIKeyStore) List(ctx context.Context) ([]*store.APIKey, error) {
-	log := ctxlog.From(ctx)
+	logger := ctxlog.From(ctx)
 	var keys []*store.APIKey
 
 	err := b.db.View(func(tx *bbolt.Tx) error {
@@ -186,7 +187,7 @@ func (b *bboltAPIKeyStore) List(ctx context.Context) ([]*store.APIKey, error) {
 
 		return bucket.ForEach(func(k, v []byte) error {
 			if len(k) != 8 || v == nil {
-				log.Warn("skipping unexpected entry in API keys bucket", "keyLen", len(k))
+				logger.Warn("skipping unexpected entry in API keys bucket", "keyLen", len(k))
 				return nil
 			}
 			var key store.APIKey
@@ -230,7 +231,7 @@ func loadAPIKey(bucket *bbolt.Bucket, id uint64) (*store.APIKey, error) {
 	encodedKey := u64tob(id)
 	data := bucket.Get(encodedKey)
 	if data == nil {
-		return nil, fmt.Errorf("API key not found")
+		return nil, store.ErrNotFound
 	}
 
 	var key store.APIKey
