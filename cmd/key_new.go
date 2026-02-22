@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+const maxKeyNameLength = 64
+
 var (
 	keysNewName     string
 	keysNewReadOnly bool
@@ -57,6 +59,9 @@ artf key new --name mykey --readonly=false
 			if slices.Contains(existingKeyNames, s) {
 				return fmt.Errorf("key name must be unique, %q already exists", s)
 			}
+			if len(s) > maxKeyNameLength {
+				return fmt.Errorf("key name cannot be longer than %d characters", maxKeyNameLength)
+			}
 			return nil
 		}
 
@@ -73,7 +78,7 @@ artf key new --name mykey --readonly=false
 				Title("Key name ").
 				Placeholder("something_you_will_recognize_later").
 				Value(&name).
-				CharLimit(64).
+				CharLimit(maxKeyNameLength).
 				Inline(true).
 				Validate(validateName)
 			err = nameInput.Run()

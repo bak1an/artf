@@ -20,9 +20,16 @@ func init() {
 }
 
 func renderKeysTable(keys []*admin.Key) {
+	maxKeyNameLength := 0
+	for _, key := range keys {
+		if len(key.Name) > maxKeyNameLength {
+			maxKeyNameLength = len(key.Name)
+		}
+	}
+	keyNameWidth := maxKeyNameLength + 2
 	columns := []table.Column{
 		{Title: "ID", Width: 5},
-		{Title: "Name", Width: 20},
+		{Title: "Name", Width: keyNameWidth},
 		{Title: "ReadOnly", Width: 8},
 		{Title: "CreatedAt", Width: 25},
 		{Title: "LastUsedAt", Width: 25},
