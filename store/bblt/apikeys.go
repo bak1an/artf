@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -63,7 +62,7 @@ func (b *bboltAPIKeyStore) Create(ctx context.Context, key *store.APIKey) error 
 			return fmt.Errorf("index bucket not found")
 		}
 
-		indexKey := apiKeyIndexKey([]byte(hex.EncodeToString(key.KeyHash)))
+		indexKey := apiKeyIndexKey(key.KeyHash)
 		if err := idxBucket.Put(indexKey, encodedKey); err != nil {
 			return err
 		}
@@ -100,7 +99,7 @@ func (b *bboltAPIKeyStore) Delete(ctx context.Context, id uint64) error {
 			return fmt.Errorf("index bucket not found")
 		}
 
-		indexKey := apiKeyIndexKey([]byte(hex.EncodeToString(key.KeyHash)))
+		indexKey := apiKeyIndexKey(key.KeyHash)
 		if err := idxBucket.Delete(indexKey); err != nil {
 			return err
 		}
