@@ -52,8 +52,10 @@ func NewAdminServer(dataDir string, db store.Store) (*AdminServer, error) {
 	baseLogger := slog.Default().With("server", "admin")
 
 	h := server.RecoverMiddleware( // recover panics
-		server.RequestContextLogger(baseLogger)( // add logger to the context
-			server.LoggingMiddleware(mux), // log response times via above logger
+		server.RequestID( // add request id
+			server.RequestContextLogger(baseLogger)( // add logger to the context
+				server.LoggingMiddleware(mux), // log response times via above logger
+			),
 		),
 	)
 
