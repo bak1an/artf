@@ -84,6 +84,49 @@ func (c *AdminClient) DeleteKey(id uint64) error {
 	return nil
 }
 
+func (c *AdminClient) ListRepos() ([]*Repo, error) {
+	body, err := c.request("GET", "/repos", nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp RepoListResponse
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Repos, nil
+}
+
+func (c *AdminClient) CreateRepo(name string, keepCount, keepDays int) (*Repo, error) {
+	createReq := RepoCreateRequest{
+		Name:      name,
+		KeepCount: keepCount,
+		KeepDays:  keepDays,
+	}
+	requestBody, err := json.Marshal(createReq)
+	if err != nil {
+		return nil, err
+	}
+	body, err := c.request("PUT", "/repos", requestBody)
+	if err != nil {
+		return nil, err
+	}
+	var resp Repo
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (c *AdminClient) DeleteRepo(id uint64) error {
+	_, err := c.request("DELETE", "/repos/"+strconv.FormatUint(id, 10), nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *AdminClient) Ping() error {
 	body, err := c.request("GET", "/ping", nil)
 	if err != nil {

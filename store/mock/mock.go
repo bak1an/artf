@@ -152,11 +152,13 @@ func (m *MockRepoStore) Delete(ctx context.Context, id uint64) error {
 
 // MockArtifactStore implements store.ArtifactStore.
 type MockArtifactStore struct {
-	CreateFn    func(ctx context.Context, artifact *store.Artifact) error
-	GetFn       func(ctx context.Context, id uint64) (*store.Artifact, error)
-	ListFn      func(ctx context.Context) ([]*store.Artifact, error)
-	ListByRepoFn func(ctx context.Context, repoID uint64) ([]*store.Artifact, error)
-	DeleteFn    func(ctx context.Context, id uint64) error
+	CreateFn      func(ctx context.Context, artifact *store.Artifact) error
+	GetFn         func(ctx context.Context, id uint64) (*store.Artifact, error)
+	ListFn        func(ctx context.Context) ([]*store.Artifact, error)
+	ListByRepoFn  func(ctx context.Context, repoID uint64) ([]*store.Artifact, error)
+	CountByRepoFn func(ctx context.Context, repoID uint64) (int, error)
+	DeleteFn      func(ctx context.Context, id uint64) error
+	DeleteByRepoFn func(ctx context.Context, repoID uint64) error
 }
 
 func (m *MockArtifactStore) Create(ctx context.Context, artifact *store.Artifact) error {
@@ -187,9 +189,23 @@ func (m *MockArtifactStore) ListByRepo(ctx context.Context, repoID uint64) ([]*s
 	return nil, ErrNotImplemented
 }
 
+func (m *MockArtifactStore) CountByRepo(ctx context.Context, repoID uint64) (int, error) {
+	if m.CountByRepoFn != nil {
+		return m.CountByRepoFn(ctx, repoID)
+	}
+	return 0, ErrNotImplemented
+}
+
 func (m *MockArtifactStore) Delete(ctx context.Context, id uint64) error {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(ctx, id)
+	}
+	return ErrNotImplemented
+}
+
+func (m *MockArtifactStore) DeleteByRepo(ctx context.Context, repoID uint64) error {
+	if m.DeleteByRepoFn != nil {
+		return m.DeleteByRepoFn(ctx, repoID)
 	}
 	return ErrNotImplemented
 }

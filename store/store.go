@@ -44,7 +44,9 @@ type ArtifactStore interface {
 	Get(ctx context.Context, id uint64) (*Artifact, error)
 	List(ctx context.Context) ([]*Artifact, error)
 	ListByRepo(ctx context.Context, repoID uint64) ([]*Artifact, error)
+	CountByRepo(ctx context.Context, repoID uint64) (int, error)
 	Delete(ctx context.Context, id uint64) error
+	DeleteByRepo(ctx context.Context, repoID uint64) error
 }
 
 type APIKey struct {
