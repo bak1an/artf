@@ -68,6 +68,7 @@ func createRepoHandler(repoStore store.RepoStore, dataDir string) http.HandlerFu
 		now := time.Now()
 		repo := &store.Repo{
 			Name:      req.Name,
+			Type:      store.RepoTypeFile, // Only one type for now
 			Path:      "repos/" + req.Name,
 			KeepCount: req.KeepCount,
 			KeepDays:  req.KeepDays,
