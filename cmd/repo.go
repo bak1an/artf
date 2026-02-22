@@ -30,8 +30,7 @@ func renderReposTable(repos []*admin.Repo) {
 	columns := []table.Column{
 		{Title: "ID", Width: 5},
 		{Title: "Name", Width: repoNameWidth},
-		{Title: "KeepCount", Width: 10},
-		{Title: "KeepDays", Width: 9},
+		{Title: "Retention", Width: 10},
 		{Title: "Artifacts", Width: 10},
 		{Title: "CreatedAt", Width: 25},
 	}
@@ -39,11 +38,23 @@ func renderReposTable(repos []*admin.Repo) {
 	for _, repo := range repos {
 		idStr := strconv.FormatUint(repo.ID, 10)
 		createdAtStr := repo.CreatedAt.Format("2006-01-02 15:04:05")
+		retentionStr := ""
+		if repo.KeepCount > 0 {
+			retentionStr += fmt.Sprintf("%d", repo.KeepCount)
+		}
+		if repo.KeepDays > 0 {
+			if retentionStr != "" {
+				retentionStr += " / "
+			}
+			retentionStr += fmt.Sprintf("%dd", repo.KeepDays)
+		}
+		if retentionStr == "" {
+			retentionStr = "all"
+		}
 		rows = append(rows, table.Row{
 			idStr,
 			repo.Name,
-			strconv.Itoa(repo.KeepCount),
-			strconv.Itoa(repo.KeepDays),
+			retentionStr,
 			strconv.Itoa(repo.ArtifactCount),
 			createdAtStr,
 		})
