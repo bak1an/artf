@@ -45,6 +45,10 @@ func NewAdminServer(dataDir string, db store.Store) (*AdminServer, error) {
 	mux.HandleFunc("GET /ping", handler.Ping)
 	mux.HandleFunc("GET /version", handler.Version)
 
+	mux.HandleFunc("GET /keys", listKeysHandler(db.APIKeys()))          // list all API keys
+	mux.HandleFunc("PUT /keys", createKeyHandler(db.APIKeys()))         // create a new API key
+	mux.HandleFunc("DELETE /keys/{id}", deleteKeyHandler(db.APIKeys())) // delete a key
+
 	baseLogger := slog.Default().With("server", "admin")
 
 	h := server.RecoverMiddleware( // recover panics
