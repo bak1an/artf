@@ -42,7 +42,7 @@ func (m *MockStore) Close() error {
 type MockAPIKeyStore struct {
 	CreateFn         func(ctx context.Context, key *store.APIKey) error
 	GetFn            func(ctx context.Context, id uint64) (*store.APIKey, error)
-	GetByKeyFn       func(ctx context.Context, keyHash string) (*store.APIKey, error)
+	GetByKeyFn       func(ctx context.Context, keyHash []byte) (*store.APIKey, error)
 	ListFn           func(ctx context.Context) ([]*store.APIKey, error)
 	DeleteFn         func(ctx context.Context, id uint64) error
 	UpdateLastUsedFn func(ctx context.Context, id uint64, lastUsed time.Time) error
@@ -62,7 +62,7 @@ func (m *MockAPIKeyStore) Get(ctx context.Context, id uint64) (*store.APIKey, er
 	return nil, ErrNotImplemented
 }
 
-func (m *MockAPIKeyStore) GetByKey(ctx context.Context, keyHash string) (*store.APIKey, error) {
+func (m *MockAPIKeyStore) GetByKey(ctx context.Context, keyHash []byte) (*store.APIKey, error) {
 	if m.GetByKeyFn != nil {
 		return m.GetByKeyFn(ctx, keyHash)
 	}

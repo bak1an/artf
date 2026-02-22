@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -34,7 +33,7 @@ func AuthMiddleware(keys store.APIKeyStore, readonly bool) func(http.Handler) ht
 				return
 			}
 
-			keyHash := hex.EncodeToString(auth.HashKey(rawKey))
+			keyHash := auth.HashKey(rawKey)
 
 			key, err := keys.GetByKey(r.Context(), keyHash)
 			if err != nil {

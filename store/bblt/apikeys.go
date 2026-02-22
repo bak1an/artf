@@ -136,7 +136,7 @@ func (b *bboltAPIKeyStore) Get(ctx context.Context, id uint64) (*store.APIKey, e
 }
 
 // GetByKey implements [store.APIKeyStore].
-func (b *bboltAPIKeyStore) GetByKey(ctx context.Context, keyHash string) (*store.APIKey, error) {
+func (b *bboltAPIKeyStore) GetByKey(ctx context.Context, keyHash []byte) (*store.APIKey, error) {
 	logger := ctxlog.From(ctx)
 	logger.Info("getting API key by key hash", "keyHash", keyHash)
 
@@ -147,7 +147,7 @@ func (b *bboltAPIKeyStore) GetByKey(ctx context.Context, keyHash string) (*store
 		if idxBucket == nil {
 			return fmt.Errorf("index bucket not found")
 		}
-		indexKey := apiKeyIndexKey([]byte(keyHash))
+		indexKey := apiKeyIndexKey(keyHash)
 		data := idxBucket.Get(indexKey)
 		if data == nil {
 			return store.ErrNotFound
