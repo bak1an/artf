@@ -1,0 +1,151 @@
+package mock
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/bak1an/artf/store"
+)
+
+var ErrNotImplemented = errors.New("this mock method is not implemented")
+
+// MockStore implements store.Store.
+type MockStore struct {
+	APIKeysFn func() store.APIKeyStore
+	ReposFn   func() store.RepoStore
+	CloseFn   func() error
+}
+
+func (m *MockStore) APIKeys() store.APIKeyStore {
+	if m.APIKeysFn != nil {
+		return m.APIKeysFn()
+	}
+	return &MockAPIKeyStore{}
+}
+
+func (m *MockStore) Repos() store.RepoStore {
+	if m.ReposFn != nil {
+		return m.ReposFn()
+	}
+	return &MockRepoStore{}
+}
+
+func (m *MockStore) Close() error {
+	if m.CloseFn != nil {
+		return m.CloseFn()
+	}
+	return nil
+}
+
+// MockAPIKeyStore implements store.APIKeyStore.
+type MockAPIKeyStore struct {
+	CreateFn         func(ctx context.Context, key *store.APIKey) error
+	GetFn            func(ctx context.Context, id uint64) (*store.APIKey, error)
+	GetByKeyFn       func(ctx context.Context, keyHash string) (*store.APIKey, error)
+	ListFn           func(ctx context.Context) ([]*store.APIKey, error)
+	DeleteFn         func(ctx context.Context, id uint64) error
+	UpdateLastUsedFn func(ctx context.Context, id uint64, lastUsed time.Time) error
+}
+
+func (m *MockAPIKeyStore) Create(ctx context.Context, key *store.APIKey) error {
+	if m.CreateFn != nil {
+		return m.CreateFn(ctx, key)
+	}
+	return ErrNotImplemented
+}
+
+func (m *MockAPIKeyStore) Get(ctx context.Context, id uint64) (*store.APIKey, error) {
+	if m.GetFn != nil {
+		return m.GetFn(ctx, id)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockAPIKeyStore) GetByKey(ctx context.Context, keyHash string) (*store.APIKey, error) {
+	if m.GetByKeyFn != nil {
+		return m.GetByKeyFn(ctx, keyHash)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockAPIKeyStore) List(ctx context.Context) ([]*store.APIKey, error) {
+	if m.ListFn != nil {
+		return m.ListFn(ctx)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockAPIKeyStore) Delete(ctx context.Context, id uint64) error {
+	if m.DeleteFn != nil {
+		return m.DeleteFn(ctx, id)
+	}
+	return ErrNotImplemented
+}
+
+func (m *MockAPIKeyStore) UpdateLastUsed(ctx context.Context, id uint64, lastUsed time.Time) error {
+	if m.UpdateLastUsedFn != nil {
+		return m.UpdateLastUsedFn(ctx, id, lastUsed)
+	}
+	return ErrNotImplemented
+}
+
+// MockRepoStore implements store.RepoStore.
+type MockRepoStore struct {
+	CreateFn    func(ctx context.Context, repo *store.Repo) error
+	GetFn       func(ctx context.Context, id uint64) (*store.Repo, error)
+	GetByNameFn func(ctx context.Context, name string) (*store.Repo, error)
+	GetByPathFn func(ctx context.Context, path string) (*store.Repo, error)
+	ListFn      func(ctx context.Context) ([]*store.Repo, error)
+	UpdateFn    func(ctx context.Context, repo *store.Repo) error
+	DeleteFn    func(ctx context.Context, id uint64) error
+}
+
+func (m *MockRepoStore) Create(ctx context.Context, repo *store.Repo) error {
+	if m.CreateFn != nil {
+		return m.CreateFn(ctx, repo)
+	}
+	return ErrNotImplemented
+}
+
+func (m *MockRepoStore) Get(ctx context.Context, id uint64) (*store.Repo, error) {
+	if m.GetFn != nil {
+		return m.GetFn(ctx, id)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockRepoStore) GetByName(ctx context.Context, name string) (*store.Repo, error) {
+	if m.GetByNameFn != nil {
+		return m.GetByNameFn(ctx, name)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockRepoStore) GetByPath(ctx context.Context, path string) (*store.Repo, error) {
+	if m.GetByPathFn != nil {
+		return m.GetByPathFn(ctx, path)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockRepoStore) List(ctx context.Context) ([]*store.Repo, error) {
+	if m.ListFn != nil {
+		return m.ListFn(ctx)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockRepoStore) Update(ctx context.Context, repo *store.Repo) error {
+	if m.UpdateFn != nil {
+		return m.UpdateFn(ctx, repo)
+	}
+	return ErrNotImplemented
+}
+
+func (m *MockRepoStore) Delete(ctx context.Context, id uint64) error {
+	if m.DeleteFn != nil {
+		return m.DeleteFn(ctx, id)
+	}
+	return ErrNotImplemented
+}
