@@ -37,7 +37,12 @@ func listKeysHandler(keyStore store.APIKeyStore) http.HandlerFunc {
 			}
 		}
 
-		json.NewEncoder(w).Encode(resp)
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			logger.Error("failed to encode response", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -102,10 +107,16 @@ func deleteKeyHandler(keyStore store.APIKeyStore) http.HandlerFunc {
 			return
 		}
 		err = keyStore.Delete(r.Context(), id)
-		if err != nil {
+		if err == store.ErrNotFound {
+			logger.Error("key not found", "id", id)
+			http.Error(w, "key not found", http.StatusNotFound)
+			return
+		} else if err != nil {
 			logger.Error("failed to delete key", "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }

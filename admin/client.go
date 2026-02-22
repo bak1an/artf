@@ -45,12 +45,12 @@ func (c *AdminClient) Path() string {
 func (c *AdminClient) ListKeys() ([]*Key, error) {
 	body, err := c.request("GET", "/keys", nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot list keys: %w", err)
+		return nil, err
 	}
 	var resp KeyListResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal keys list: %w", err)
+		return nil, err
 	}
 	return resp.Keys, nil
 }
@@ -62,16 +62,16 @@ func (c *AdminClient) CreateKey(name string, readOnly bool) (*Key, error) {
 	}
 	requestBody, err := json.Marshal(createReq)
 	if err != nil {
-		return nil, fmt.Errorf("cannot marshal create request: %w", err)
+		return nil, err
 	}
 	body, err := c.request("PUT", "/keys", requestBody)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create key: %w", err)
+		return nil, err
 	}
 	var resp Key
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal create response: %w", err)
+		return nil, err
 	}
 	return &resp, nil
 }
@@ -79,7 +79,7 @@ func (c *AdminClient) CreateKey(name string, readOnly bool) (*Key, error) {
 func (c *AdminClient) DeleteKey(id uint64) error {
 	_, err := c.request("DELETE", "/keys/"+strconv.FormatUint(id, 10), nil)
 	if err != nil {
-		return fmt.Errorf("cannot delete key: %w", err)
+		return err
 	}
 	return nil
 }
@@ -87,10 +87,11 @@ func (c *AdminClient) DeleteKey(id uint64) error {
 func (c *AdminClient) Ping() error {
 	body, err := c.request("GET", "/ping", nil)
 	if err != nil {
-		return fmt.Errorf("cannot ping admin server: %w", err)
+		return err
 	}
-	if string(body) != "pong" {
-		return fmt.Errorf("unexpected ping response: %s", string(body))
+	bodyStr := string(body)
+	if bodyStr != "pong" {
+		return fmt.Errorf("unexpected ping response: %s", bodyStr)
 	}
 	return nil
 }
@@ -98,12 +99,12 @@ func (c *AdminClient) Ping() error {
 func (c *AdminClient) Version() (version.BuildInfo, error) {
 	body, err := c.request("GET", "/version", nil)
 	if err != nil {
-		return version.BuildInfo{}, fmt.Errorf("cannot get running version: %w", err)
+		return version.BuildInfo{}, err
 	}
 	var v version.BuildInfo
 	err = json.Unmarshal(body, &v)
 	if err != nil {
-		return version.BuildInfo{}, fmt.Errorf("cannot unmarshal version info: %w", err)
+		return version.BuildInfo{}, err
 	}
 	return v, nil
 }
@@ -115,28 +116,28 @@ func (c *AdminClient) request(method string, path string, body []byte) ([]byte, 
 	if body != nil {
 		req, err = http.NewRequest(method, "http://unix"+path, bytes.NewReader(body))
 		if err != nil {
-			return nil, fmt.Errorf("cannot create request: %w", err)
+			return nil, err
 		}
 		req.Header.Set("Content-Type", "application/json")
 	} else {
 		req, err = http.NewRequest(method, "http://unix"+path, nil)
 		if err != nil {
-			return nil, fmt.Errorf("cannot create request: %w", err)
+			return nil, err
 		}
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil || resp == nil {
-		return nil, fmt.Errorf("cannot %s %s: %w", method, path, err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("cannot %s %s: %s", method, path, resp.Status)
+		return nil, fmt.Errorf("%s %s returned %s", method, path, resp.Status)
 	}
 
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read response body: %w", err)
+		return nil, err
 	}
 	return body, nil
 }

@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/bak1an/artf/admin"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -15,35 +16,64 @@ var keysCreateCmd = &cobra.Command{
 	Short:   "Create a new key",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		data := viper.GetString("data")
-		adminClient, err := admin.NewAdminClient(data)
+
+		cmd.SilenceUsage = true
+
+		adminClient, err := initAdminClient(data)
 		if err != nil {
-			return fmt.Errorf("cannot create admin client: %w", err)
+			return err
 		}
 
-		err = adminClient.Ping()
+		existingKeys, err := adminClient.ListKeys()
 		if err != nil {
-			return fmt.Errorf("cannot ping admin server: %w", err)
+			return err
+		}
+		existingKeyNames := make([]string, len(existingKeys))
+		for i, key := range existingKeys {
+			existingKeyNames[i] = key.Name
 		}
 
 		var name string
-		var readOnlyInput string
-		fmt.Print("Enter key name: ")
-		fmt.Scanln(&name)
-		fmt.Print("Is this key read-only? (y/n): ")
-		fmt.Scanln(&readOnlyInput)
+		readOnly := true
 
-		readOnly := strings.TrimSpace(strings.ToLower(readOnlyInput)) == "y"
-		name = strings.TrimSpace(name)
-		if name == "" {
-			return fmt.Errorf("key name cannot be empty")
+		nameInput := huh.NewInput().
+			Title("Key name ").
+			Placeholder("something_you_will_recognize_later").
+			Value(&name).
+			CharLimit(64).
+			Inline(true).
+			Validate(func(s string) error {
+				s = strings.TrimSpace(s)
+				if s == "" {
+					return fmt.Errorf("key name cannot be empty")
+				}
+				if slices.Contains(existingKeyNames, s) {
+					return fmt.Errorf("key name must be unique, %q already exists", s)
+				}
+				return nil
+			})
+		readOnlyInput := huh.NewConfirm().
+			Title("Is this key read-only?").
+			Value(&readOnly).
+			Inline(true)
+
+		err = nameInput.Run()
+		if err != nil {
+			return err
 		}
+		err = readOnlyInput.Run()
+		if err != nil {
+			return err
+		}
+
+		name = strings.TrimSpace(name)
 
 		key, err := adminClient.CreateKey(name, readOnly)
 		if err != nil {
 			return fmt.Errorf("cannot create key: %w", err)
 		}
 
-		fmt.Printf("Key created: %s\n", *key.Key)
+		fmt.Printf("Key created, you will only see it once so save it now:\n\n%s\n", *key.Key)
 
 		return nil
 	},
