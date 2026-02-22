@@ -16,7 +16,17 @@ var keysRmCmd = &cobra.Command{
 	Use:     "rm [id]",
 	Aliases: []string{"delete"},
 	Short:   "Delete a key",
-	Args:    cobra.MaximumNArgs(1),
+	Example: `
+# Delete key interactively
+artf key rm
+
+# Delete key by id
+artf key rm 1
+
+# Delete key by id skipping confirmation
+artf key rm 1 --yes
+`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		data := viper.GetString("data")
 

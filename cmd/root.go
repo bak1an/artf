@@ -81,7 +81,7 @@ func initializeConfig(cmd *cobra.Command) error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringP("data", "d", "", "data directory (default: $HOME/.artf)")
+	rootCmd.PersistentFlags().StringP("data", "d", "", "data directory (default: ARTF_DATA env var or $HOME/.artf)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 }
 
