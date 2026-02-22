@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bak1an/artf/admin"
 	"github.com/charmbracelet/huh"
@@ -9,10 +10,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+var keysRmYes bool
+
 var keysRmCmd = &cobra.Command{
-	Use:     "rm",
+	Use:     "rm [id]",
 	Aliases: []string{"delete"},
 	Short:   "Delete a key",
+	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		data := viper.GetString("data")
 
@@ -34,32 +38,50 @@ var keysRmCmd = &cobra.Command{
 		}
 
 		var toDelete *admin.Key
-		confirm := false
 
-		options := make([]huh.Option[*admin.Key], len(existingKeys))
-		for i, key := range existingKeys {
-			options[i] = huh.Option[*admin.Key]{
-				Key:   key.Name,
-				Value: key,
+		if len(args) == 1 {
+			id, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid key id %q: %w", args[0], err)
+			}
+			for _, k := range existingKeys {
+				if k.ID == id {
+					toDelete = k
+					break
+				}
+			}
+			if toDelete == nil {
+				return fmt.Errorf("key with id %d not found", id)
+			}
+		} else {
+			options := make([]huh.Option[*admin.Key], len(existingKeys))
+			for i, key := range existingKeys {
+				options[i] = huh.Option[*admin.Key]{
+					Key:   key.Name,
+					Value: key,
+				}
+			}
+			toDeleteInput := huh.NewSelect[*admin.Key]().
+				Title("Select key to delete (type / to filter)").
+				Options(options...).
+				Value(&toDelete)
+
+			err = toDeleteInput.Run()
+			if err != nil {
+				return err
 			}
 		}
-		toDeleteInput := huh.NewSelect[*admin.Key]().
-			Title("Select key to delete (type / to filter)").
-			Options(options...).
-			Value(&toDelete)
 
-		err = toDeleteInput.Run()
-		if err != nil {
-			return err
-		}
-
-		confirmInput := huh.NewConfirm().
-			Title(fmt.Sprintf("Are you sure you want to delete key '%s'?", toDelete.Name)).
-			Value(&confirm).
-			Inline(true)
-		err = confirmInput.Run()
-		if err != nil {
-			return err
+		confirm := keysRmYes
+		if !confirm {
+			confirmInput := huh.NewConfirm().
+				Title(fmt.Sprintf("Are you sure you want to delete key '%s'?", toDelete.Name)).
+				Value(&confirm).
+				Inline(true)
+			err = confirmInput.Run()
+			if err != nil {
+				return err
+			}
 		}
 
 		if !confirm {
@@ -79,4 +101,5 @@ var keysRmCmd = &cobra.Command{
 
 func init() {
 	keyCmd.AddCommand(keysRmCmd)
+	keysRmCmd.Flags().BoolVar(&keysRmYes, "yes", false, "skip confirmation")
 }
