@@ -10,9 +10,10 @@ type bboltStore struct {
 }
 
 var (
-	apiKeysBucket = []byte("apiKeys")
-	reposBucket   = []byte("repos")
-	indexBucket   = []byte("index")
+	apiKeysBucket   = []byte("apiKeys")
+	reposBucket     = []byte("repos")
+	indexBucket     = []byte("index")
+	artifactsBucket = []byte("artifacts")
 )
 
 func NewBboltStore(db *bbolt.DB) (store.Store, error) {
@@ -27,6 +28,11 @@ func NewBboltStore(db *bbolt.DB) (store.Store, error) {
 		}
 
 		_, err = tx.CreateBucketIfNotExists(indexBucket)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.CreateBucketIfNotExists(artifactsBucket)
 		if err != nil {
 			return err
 		}
@@ -53,4 +59,9 @@ func (b *bboltStore) Repos() store.RepoStore {
 // APIKeys implements [store.Store].
 func (b *bboltStore) APIKeys() store.APIKeyStore {
 	return &bboltAPIKeyStore{db: b.db}
+}
+
+// Artifacts implements [store.Store].
+func (b *bboltStore) Artifacts() store.ArtifactStore {
+	return &bboltArtifactStore{db: b.db}
 }

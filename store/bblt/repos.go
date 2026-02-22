@@ -17,15 +17,10 @@ type bboltRepoStore struct {
 
 var (
 	repoNameIndexPrefix = []byte("repoName")
-	repoPathIndexPrefix = []byte("repoPath")
 )
 
 func repoNameIndexKey(name string) []byte {
 	return bytes.Join([][]byte{repoNameIndexPrefix, []byte(name)}, []byte(":"))
-}
-
-func repoPathIndexKey(path string) []byte {
-	return bytes.Join([][]byte{repoPathIndexPrefix, []byte(path)}, []byte(":"))
 }
 
 func loadRepo(bucket *bbolt.Bucket, id uint64) (*store.Repo, error) {
@@ -85,9 +80,6 @@ func (b *bboltRepoStore) Create(ctx context.Context, repo *store.Repo) error {
 		if err := idxBucket.Put(repoNameIndexKey(repo.Name), encodedKey); err != nil {
 			return err
 		}
-		if err := idxBucket.Put(repoPathIndexKey(repo.Path), encodedKey); err != nil {
-			return err
-		}
 
 		return nil
 	})
@@ -122,9 +114,6 @@ func (b *bboltRepoStore) Delete(ctx context.Context, id uint64) error {
 		}
 
 		if err := idxBucket.Delete(repoNameIndexKey(repo.Name)); err != nil {
-			return err
-		}
-		if err := idxBucket.Delete(repoPathIndexKey(repo.Path)); err != nil {
 			return err
 		}
 
@@ -171,44 +160,6 @@ func (b *bboltRepoStore) GetByName(ctx context.Context, name string) (*store.Rep
 			return fmt.Errorf("index bucket not found")
 		}
 		indexKey := repoNameIndexKey(name)
-		data := idxBucket.Get(indexKey)
-		if data == nil {
-			return store.ErrNotFound
-		}
-		if len(data) != 8 {
-			logger.Warn("corrupted index entry: expected 8 bytes, got %d", "len", len(data))
-			return fmt.Errorf("corrupted index entry: expected 8 bytes, got %d", len(data))
-		}
-
-		bucket := tx.Bucket(reposBucket)
-		if bucket == nil {
-			return fmt.Errorf("repos bucket not found")
-		}
-
-		var err error
-		repo, err = loadRepo(bucket, btou64(data))
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
-	return repo, err
-}
-
-// GetByPath implements [store.RepoStore].
-func (b *bboltRepoStore) GetByPath(ctx context.Context, path string) (*store.Repo, error) {
-	logger := ctxlog.From(ctx)
-	logger.Info("getting repo by path", "path", path)
-
-	var repo *store.Repo
-
-	err := b.db.View(func(tx *bbolt.Tx) error {
-		idxBucket := tx.Bucket(indexBucket)
-		if idxBucket == nil {
-			return fmt.Errorf("index bucket not found")
-		}
-		indexKey := repoPathIndexKey(path)
 		data := idxBucket.Get(indexKey)
 		if data == nil {
 			return store.ErrNotFound
@@ -286,9 +237,6 @@ func (b *bboltRepoStore) Update(ctx context.Context, repo *store.Repo) error {
 		if err := idxBucket.Delete(repoNameIndexKey(oldRepo.Name)); err != nil {
 			return err
 		}
-		if err := idxBucket.Delete(repoPathIndexKey(oldRepo.Path)); err != nil {
-			return err
-		}
 
 		var encodedValue bytes.Buffer
 		encoder := gob.NewEncoder(&encodedValue)
@@ -302,9 +250,6 @@ func (b *bboltRepoStore) Update(ctx context.Context, repo *store.Repo) error {
 		}
 
 		if err := idxBucket.Put(repoNameIndexKey(repo.Name), encodedKey); err != nil {
-			return err
-		}
-		if err := idxBucket.Put(repoPathIndexKey(repo.Path), encodedKey); err != nil {
 			return err
 		}
 

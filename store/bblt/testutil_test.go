@@ -63,3 +63,12 @@ func seedAPIKey(name string, keyHash []byte, createdAt time.Time, readOnly bool)
 		ReadOnly:  readOnly,
 	}
 }
+
+func seedArtifact(name, path string, repoID uint64, createdAt time.Time) *store.Artifact {
+	return &store.Artifact{
+		Name:      name,
+		Path:      path,
+		RepoID:    repoID,
+		CreatedAt: createdAt,
+	}
+}

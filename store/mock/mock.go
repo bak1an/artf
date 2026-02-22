@@ -12,9 +12,10 @@ var ErrNotImplemented = errors.New("this mock method is not implemented")
 
 // MockStore implements store.Store.
 type MockStore struct {
-	APIKeysFn func() store.APIKeyStore
-	ReposFn   func() store.RepoStore
-	CloseFn   func() error
+	APIKeysFn   func() store.APIKeyStore
+	ReposFn     func() store.RepoStore
+	ArtifactsFn func() store.ArtifactStore
+	CloseFn     func() error
 }
 
 func (m *MockStore) APIKeys() store.APIKeyStore {
@@ -29,6 +30,13 @@ func (m *MockStore) Repos() store.RepoStore {
 		return m.ReposFn()
 	}
 	return &MockRepoStore{}
+}
+
+func (m *MockStore) Artifacts() store.ArtifactStore {
+	if m.ArtifactsFn != nil {
+		return m.ArtifactsFn()
+	}
+	return &MockArtifactStore{}
 }
 
 func (m *MockStore) Close() error {
@@ -95,7 +103,6 @@ type MockRepoStore struct {
 	CreateFn    func(ctx context.Context, repo *store.Repo) error
 	GetFn       func(ctx context.Context, id uint64) (*store.Repo, error)
 	GetByNameFn func(ctx context.Context, name string) (*store.Repo, error)
-	GetByPathFn func(ctx context.Context, path string) (*store.Repo, error)
 	ListFn      func(ctx context.Context) ([]*store.Repo, error)
 	UpdateFn    func(ctx context.Context, repo *store.Repo) error
 	DeleteFn    func(ctx context.Context, id uint64) error
@@ -122,13 +129,6 @@ func (m *MockRepoStore) GetByName(ctx context.Context, name string) (*store.Repo
 	return nil, ErrNotImplemented
 }
 
-func (m *MockRepoStore) GetByPath(ctx context.Context, path string) (*store.Repo, error) {
-	if m.GetByPathFn != nil {
-		return m.GetByPathFn(ctx, path)
-	}
-	return nil, ErrNotImplemented
-}
-
 func (m *MockRepoStore) List(ctx context.Context) ([]*store.Repo, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx)
@@ -144,6 +144,50 @@ func (m *MockRepoStore) Update(ctx context.Context, repo *store.Repo) error {
 }
 
 func (m *MockRepoStore) Delete(ctx context.Context, id uint64) error {
+	if m.DeleteFn != nil {
+		return m.DeleteFn(ctx, id)
+	}
+	return ErrNotImplemented
+}
+
+// MockArtifactStore implements store.ArtifactStore.
+type MockArtifactStore struct {
+	CreateFn    func(ctx context.Context, artifact *store.Artifact) error
+	GetFn       func(ctx context.Context, id uint64) (*store.Artifact, error)
+	ListFn      func(ctx context.Context) ([]*store.Artifact, error)
+	ListByRepoFn func(ctx context.Context, repoID uint64) ([]*store.Artifact, error)
+	DeleteFn    func(ctx context.Context, id uint64) error
+}
+
+func (m *MockArtifactStore) Create(ctx context.Context, artifact *store.Artifact) error {
+	if m.CreateFn != nil {
+		return m.CreateFn(ctx, artifact)
+	}
+	return ErrNotImplemented
+}
+
+func (m *MockArtifactStore) Get(ctx context.Context, id uint64) (*store.Artifact, error) {
+	if m.GetFn != nil {
+		return m.GetFn(ctx, id)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockArtifactStore) List(ctx context.Context) ([]*store.Artifact, error) {
+	if m.ListFn != nil {
+		return m.ListFn(ctx)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockArtifactStore) ListByRepo(ctx context.Context, repoID uint64) ([]*store.Artifact, error) {
+	if m.ListByRepoFn != nil {
+		return m.ListByRepoFn(ctx, repoID)
+	}
+	return nil, ErrNotImplemented
+}
+
+func (m *MockArtifactStore) Delete(ctx context.Context, id uint64) error {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(ctx, id)
 	}

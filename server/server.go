@@ -18,12 +18,9 @@ type Server struct {
 }
 
 func NewServer(dataDir string, listener net.Listener, db store.Store) (*Server, error) {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /ping", handler.Ping)
-	mux.HandleFunc("GET /version", handler.Version)
-
 	baseLogger := slog.Default().With("server", "api")
+
+	mux := createMux()
 
 	h := RecoverMiddleware( // recover panics
 		RequestID( // add request id
@@ -37,7 +34,16 @@ func NewServer(dataDir string, listener net.Listener, db store.Store) (*Server, 
 		Handler: h,
 	}
 
-	return &Server{listener: listener, db: db, srv: srv}, nil
+	return &Server{dataDir: dataDir, listener: listener, db: db, srv: srv}, nil
+}
+
+func createMux() *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /ping", handler.Ping)
+	mux.HandleFunc("GET /version", handler.Version)
+
+	return mux
 }
 
 func (s *Server) Serve() error {

@@ -67,13 +67,6 @@ func TestRepoStoreGetByNameAndPath(t *testing.T) {
 		t.Fatalf("GetByName returned wrong ID: got=%d want=%d", byName.ID, repo.ID)
 	}
 
-	byPath, err := rs.GetByPath(ctx, repo.Path)
-	if err != nil {
-		t.Fatalf("get by path: %v", err)
-	}
-	if byPath.ID != repo.ID {
-		t.Fatalf("GetByPath returned wrong ID: got=%d want=%d", byPath.ID, repo.ID)
-	}
 }
 
 func TestRepoStoreUpdateUpdatesIndexes(t *testing.T) {
@@ -98,9 +91,6 @@ func TestRepoStoreUpdateUpdatesIndexes(t *testing.T) {
 	if _, err := rs.GetByName(ctx, "old-repo"); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("expected old name lookup to fail with ErrNotFound, got: %v", err)
 	}
-	if _, err := rs.GetByPath(ctx, "/tmp/old-repo"); !errors.Is(err, store.ErrNotFound) {
-		t.Fatalf("expected old path lookup to fail with ErrNotFound, got: %v", err)
-	}
 
 	byName, err := rs.GetByName(ctx, "new-repo")
 	if err != nil {
@@ -110,13 +100,6 @@ func TestRepoStoreUpdateUpdatesIndexes(t *testing.T) {
 		t.Fatalf("unexpected repo from GetByName: %+v", byName)
 	}
 
-	byPath, err := rs.GetByPath(ctx, "/tmp/new-repo")
-	if err != nil {
-		t.Fatalf("get by new path: %v", err)
-	}
-	if byPath.ID != repo.ID || byPath.Name != "new-repo" {
-		t.Fatalf("unexpected repo from GetByPath: %+v", byPath)
-	}
 }
 
 func TestRepoStoreDeleteRemovesDataAndIndexes(t *testing.T) {
@@ -140,9 +123,6 @@ func TestRepoStoreDeleteRemovesDataAndIndexes(t *testing.T) {
 	if _, err := rs.GetByName(ctx, repo.Name); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("expected GetByName to fail with ErrNotFound, got: %v", err)
 	}
-	if _, err := rs.GetByPath(ctx, repo.Path); !errors.Is(err, store.ErrNotFound) {
-		t.Fatalf("expected GetByPath to fail with ErrNotFound, got: %v", err)
-	}
 }
 
 func TestRepoStoreNotFoundCases(t *testing.T) {
@@ -155,9 +135,6 @@ func TestRepoStoreNotFoundCases(t *testing.T) {
 	}
 	if _, err := rs.GetByName(ctx, "missing"); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("GetByName expected ErrNotFound, got: %v", err)
-	}
-	if _, err := rs.GetByPath(ctx, "/tmp/missing"); !errors.Is(err, store.ErrNotFound) {
-		t.Fatalf("GetByPath expected ErrNotFound, got: %v", err)
 	}
 	if err := rs.Delete(ctx, 999); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("Delete expected ErrNotFound, got: %v", err)
@@ -177,14 +154,11 @@ func TestRepoStoreCorruptedIndexEntry(t *testing.T) {
 		if err := idx.Put(repoNameIndexKey("bad-name"), []byte{1, 2, 3}); err != nil {
 			return err
 		}
-		return idx.Put(repoPathIndexKey("/tmp/bad-path"), []byte{1})
+		return nil
 	})
 
 	if _, err := rs.GetByName(ctx, "bad-name"); err == nil || errors.Is(err, store.ErrNotFound) || !strings.Contains(err.Error(), "corrupted index entry") {
 		t.Fatalf("expected corrupted index error for name, got: %v", err)
-	}
-	if _, err := rs.GetByPath(ctx, "/tmp/bad-path"); err == nil || errors.Is(err, store.ErrNotFound) || !strings.Contains(err.Error(), "corrupted index entry") {
-		t.Fatalf("expected corrupted index error for path, got: %v", err)
 	}
 }
 

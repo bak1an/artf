@@ -17,6 +17,7 @@ const (
 type Store interface {
 	APIKeys() APIKeyStore
 	Repos() RepoStore
+	Artifacts() ArtifactStore
 	Close() error
 }
 
@@ -33,9 +34,16 @@ type RepoStore interface {
 	Create(ctx context.Context, repo *Repo) error
 	Get(ctx context.Context, id uint64) (*Repo, error)
 	GetByName(ctx context.Context, name string) (*Repo, error)
-	GetByPath(ctx context.Context, path string) (*Repo, error)
 	List(ctx context.Context) ([]*Repo, error)
 	Update(ctx context.Context, repo *Repo) error
+	Delete(ctx context.Context, id uint64) error
+}
+
+type ArtifactStore interface {
+	Create(ctx context.Context, artifact *Artifact) error
+	Get(ctx context.Context, id uint64) (*Artifact, error)
+	List(ctx context.Context) ([]*Artifact, error)
+	ListByRepo(ctx context.Context, repoID uint64) ([]*Artifact, error)
 	Delete(ctx context.Context, id uint64) error
 }
 
@@ -52,7 +60,17 @@ type Repo struct {
 	ID        uint64
 	Name      string
 	Type      RepoType
-	Path      string
+	Path      string // path to the repo folder on the filesystem related to data directory
+	KeepCount int    // how many artifacts to keep, 0 means keep all
+	KeepDays  int    // how many days to keep artifacts, 0 means keep all
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type Artifact struct {
+	ID        uint64
+	Name      string
+	RepoID    uint64
+	Path      string // path to the artifact folder on the filesystem related to data directory
+	CreatedAt time.Time
 }
