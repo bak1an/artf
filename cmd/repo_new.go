@@ -6,12 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bak1an/artf/internal/validate"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-const maxRepoNameLength = 64
 
 var (
 	repoNewName      string
@@ -51,17 +50,11 @@ artf repo new --name myrepo --keep-count 5 --keep-days 30
 
 		validateName := func(s string) error {
 			s = strings.TrimSpace(s)
-			if s == "" {
-				return fmt.Errorf("repo name cannot be empty")
+			if err := validate.RepoName(s); err != nil {
+				return err
 			}
 			if slices.Contains(existingRepoNames, s) {
 				return fmt.Errorf("repo name must be unique, %q already exists", s)
-			}
-			if len(s) > maxRepoNameLength {
-				return fmt.Errorf("repo name cannot be longer than %d characters", maxRepoNameLength)
-			}
-			if strings.ContainsAny(s, `/\`) {
-				return fmt.Errorf("repo name cannot contain '/' or '\\'")
 			}
 			return nil
 		}
@@ -80,7 +73,7 @@ artf repo new --name myrepo --keep-count 5 --keep-days 30
 				Title("Repo name ").
 				Placeholder("my-repo").
 				Value(&name).
-				CharLimit(maxRepoNameLength).
+				CharLimit(validate.MaxRepoNameLength).
 				Inline(true).
 				Validate(validateName)
 			err = nameInput.Run()

@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bak1an/artf/internal/ctxlog"
+	"github.com/bak1an/artf/internal/validate"
 	"github.com/bak1an/artf/store"
 )
 
@@ -62,6 +64,13 @@ func createRepoHandler(repoStore store.RepoStore, dataDir string) http.HandlerFu
 		if err != nil {
 			logger.Error("failed to decode request", "error", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		req.Name = strings.TrimSpace(req.Name)
+		if err := validate.RepoName(req.Name); err != nil {
+			logger.Error("invalid repo name", "error", err, "name", req.Name)
+			http.Error(w, "invalid repo name: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 

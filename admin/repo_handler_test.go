@@ -1,11 +1,13 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -183,4 +185,33 @@ func TestGetRepoInfoHandler(t *testing.T) {
 			t.Fatalf("expected 500, got %d", rr.Code)
 		}
 	})
+}
+
+func TestCreateRepoHandlerInvalidName(t *testing.T) {
+	dir := t.TempDir()
+	rs := &mock.MockRepoStore{
+		CreateFn: func(context.Context, *store.Repo) error {
+			t.Fatal("Create must not be called when name is invalid")
+			return nil
+		},
+	}
+	body, _ := json.Marshal(RepoCreateRequest{Name: "bad name", KeepCount: 0, KeepDays: 0})
+	req := httptest.NewRequest(http.MethodPut, "/repos", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h := createRepoHandler(rs, dir)
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid repo name, got %d", rr.Code)
+	}
+	if rr.Body.Len() == 0 {
+		t.Fatalf("expected error message in body")
+	}
+	if !bytes.Contains(rr.Body.Bytes(), []byte("invalid repo name")) {
+		t.Fatalf("expected body to contain 'invalid repo name', got %s", rr.Body.String())
+	}
+	if _, err := os.Stat(dir + "/repos"); err == nil {
+		t.Fatalf("repos dir must not be created when name is invalid")
+	}
 }
