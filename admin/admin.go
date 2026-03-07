@@ -21,6 +21,31 @@ type RepoCreateRequest struct {
 	KeepDays  int    `json:"keep_days"`
 }
 
+type RepoInfo struct {
+	ID            uint64    `json:"id"`
+	Name          string    `json:"name"`
+	Type          string    `json:"type"`
+	Path          string    `json:"path"`
+	KeepCount     int       `json:"keep_count"`
+	KeepDays      int       `json:"keep_days"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	ArtifactCount int       `json:"artifact_count"`
+}
+
+type ArtifactInfo struct {
+	ID        uint64    `json:"id"`
+	Name      string    `json:"name"`
+	RepoID    uint64    `json:"repo_id"`
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type RepoInfoResponse struct {
+	Repo      RepoInfo        `json:"repo"`
+	Artifacts []*ArtifactInfo `json:"artifacts"`
+}
+
 type Key struct {
 	ID         uint64     `json:"id"`
 	Name       string     `json:"name"`

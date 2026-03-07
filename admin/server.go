@@ -49,8 +49,9 @@ func NewAdminServer(dataDir string, db store.Store) (*AdminServer, error) {
 	mux.HandleFunc("PUT /keys", createKeyHandler(db.APIKeys()))         // create a new API key
 	mux.HandleFunc("DELETE /keys/{id}", deleteKeyHandler(db.APIKeys())) // delete a key
 
-	mux.HandleFunc("GET /repos", listReposHandler(db.Repos(), db.Artifacts()))                    // list all repos
-	mux.HandleFunc("PUT /repos", createRepoHandler(db.Repos(), dataDir))                          // create a new repo
+	mux.HandleFunc("GET /repos", listReposHandler(db.Repos(), db.Artifacts()))                   // list all repos
+	mux.HandleFunc("GET /repos/{id}", getRepoInfoHandler(db.Repos(), db.Artifacts()))            // get repo details
+	mux.HandleFunc("PUT /repos", createRepoHandler(db.Repos(), dataDir))                         // create a new repo
 	mux.HandleFunc("DELETE /repos/{id}", deleteRepoHandler(db.Repos(), db.Artifacts(), dataDir)) // delete a repo
 
 	baseLogger := slog.Default().With("server", "admin")

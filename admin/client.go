@@ -119,6 +119,19 @@ func (c *AdminClient) CreateRepo(name string, keepCount, keepDays int) (*Repo, e
 	return &resp, nil
 }
 
+func (c *AdminClient) GetRepoInfo(id uint64) (*RepoInfoResponse, error) {
+	body, err := c.request("GET", "/repos/"+strconv.FormatUint(id, 10), nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp RepoInfoResponse
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 func (c *AdminClient) DeleteRepo(id uint64) error {
 	_, err := c.request("DELETE", "/repos/"+strconv.FormatUint(id, 10), nil)
 	if err != nil {

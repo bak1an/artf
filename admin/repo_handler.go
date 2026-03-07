@@ -105,6 +105,69 @@ func createRepoHandler(repoStore store.RepoStore, dataDir string) http.HandlerFu
 	}
 }
 
+func getRepoInfoHandler(repoStore store.RepoStore, artifactStore store.ArtifactStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := ctxlog.From(r.Context())
+		idPath := r.PathValue("id")
+		id, err := strconv.ParseUint(idPath, 10, 64)
+		if err != nil {
+			logger.Error("failed to parse repo ID", "error", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		repo, err := repoStore.Get(r.Context(), id)
+		if err == store.ErrNotFound {
+			logger.Error("repo not found", "id", id)
+			http.Error(w, "repo not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			logger.Error("failed to get repo", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		artifacts, err := artifactStore.ListByRepo(r.Context(), id)
+		if err != nil {
+			logger.Error("failed to list artifacts by repo", "error", err, "repoID", id)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		resp := RepoInfoResponse{
+			Repo: RepoInfo{
+				ID:            repo.ID,
+				Name:          repo.Name,
+				Type:          string(repo.Type),
+				Path:          repo.Path,
+				KeepCount:     repo.KeepCount,
+				KeepDays:      repo.KeepDays,
+				CreatedAt:     repo.CreatedAt,
+				UpdatedAt:     repo.UpdatedAt,
+				ArtifactCount: len(artifacts),
+			},
+			Artifacts: make([]*ArtifactInfo, len(artifacts)),
+		}
+
+		for i, artifact := range artifacts {
+			resp.Artifacts[i] = &ArtifactInfo{
+				ID:        artifact.ID,
+				Name:      artifact.Name,
+				RepoID:    artifact.RepoID,
+				Path:      artifact.Path,
+				CreatedAt: artifact.CreatedAt,
+			}
+		}
+
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			logger.Error("failed to encode response", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func deleteRepoHandler(repoStore store.RepoStore, artifactStore store.ArtifactStore, dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := ctxlog.From(r.Context())
