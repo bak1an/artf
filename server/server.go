@@ -20,7 +20,7 @@ type Server struct {
 func NewServer(dataDir string, listener net.Listener, db store.Store) (*Server, error) {
 	baseLogger := slog.Default().With("server", "api")
 
-	mux := createMux()
+	mux := createMux(db, dataDir)
 
 	h := RecoverMiddleware( // recover panics
 		RequestID( // add request id
@@ -37,11 +37,18 @@ func NewServer(dataDir string, listener net.Listener, db store.Store) (*Server, 
 	return &Server{dataDir: dataDir, listener: listener, db: db, srv: srv}, nil
 }
 
-func createMux() *http.ServeMux {
+func createMux(db store.Store, dataDir string) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /ping", handler.Ping)
 	mux.HandleFunc("GET /version", handler.Version)
+
+	authRead := AuthMiddleware(db.APIKeys(), true)
+	authWrite := AuthMiddleware(db.APIKeys(), false)
+
+	mux.Handle("GET /{repoName}", authRead(handler.ListArtifacts(db.Repos(), db.Artifacts())))
+	mux.Handle("GET /{repoName}/{artifactName}", authRead(handler.DownloadArtifact(db.Repos(), db.Artifacts(), dataDir)))
+	mux.Handle("PUT /{repoName}/{artifactName}", authWrite(handler.UploadArtifact(db.Repos(), db.Artifacts(), dataDir)))
 
 	return mux
 }

@@ -175,6 +175,82 @@ func (b *bboltArtifactStore) CountByRepo(ctx context.Context, repoID uint64) (in
 	return count, err
 }
 
+// GetByRepoAndName implements [store.ArtifactStore].
+func (b *bboltArtifactStore) GetByRepoAndName(ctx context.Context, repoID uint64, name string) (*store.Artifact, error) {
+	logger := ctxlog.From(ctx)
+	logger.Info("getting artifact by repo and name", "repoID", repoID, "name", name)
+
+	var artifact *store.Artifact
+
+	err := b.db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket(artifactsBucket)
+		if bucket == nil {
+			return fmt.Errorf("artifacts bucket not found")
+		}
+
+		return bucket.ForEach(func(k, v []byte) error {
+			if len(k) != 8 || v == nil {
+				return nil
+			}
+			var a store.Artifact
+			if err := gob.NewDecoder(bytes.NewReader(v)).Decode(&a); err != nil {
+				return err
+			}
+			if a.RepoID == repoID && a.Name == name {
+				artifact = &a
+			}
+			return nil
+		})
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if artifact == nil {
+		return nil, store.ErrNotFound
+	}
+	return artifact, nil
+}
+
+// GetLatestByRepo implements [store.ArtifactStore].
+func (b *bboltArtifactStore) GetLatestByRepo(ctx context.Context, repoID uint64) (*store.Artifact, error) {
+	logger := ctxlog.From(ctx)
+	logger.Info("getting latest artifact by repo", "repoID", repoID)
+
+	var artifact *store.Artifact
+
+	err := b.db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket(artifactsBucket)
+		if bucket == nil {
+			return fmt.Errorf("artifacts bucket not found")
+		}
+
+		c := bucket.Cursor()
+		for k, v := c.Last(); k != nil; k, v = c.Prev() {
+			if len(k) != 8 || v == nil {
+				continue
+			}
+			var a store.Artifact
+			if err := gob.NewDecoder(bytes.NewReader(v)).Decode(&a); err != nil {
+				return err
+			}
+			if a.RepoID == repoID {
+				artifact = &a
+				return nil
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if artifact == nil {
+		return nil, store.ErrNotFound
+	}
+	return artifact, nil
+}
+
 // DeleteByRepo implements [store.ArtifactStore].
 func (b *bboltArtifactStore) DeleteByRepo(ctx context.Context, repoID uint64) error {
 	logger := ctxlog.From(ctx)

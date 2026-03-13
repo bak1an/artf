@@ -45,6 +45,8 @@ type ArtifactStore interface {
 	List(ctx context.Context) ([]*Artifact, error)
 	ListByRepo(ctx context.Context, repoID uint64) ([]*Artifact, error)
 	CountByRepo(ctx context.Context, repoID uint64) (int, error)
+	GetByRepoAndName(ctx context.Context, repoID uint64, name string) (*Artifact, error)
+	GetLatestByRepo(ctx context.Context, repoID uint64) (*Artifact, error)
 	Delete(ctx context.Context, id uint64) error
 	DeleteByRepo(ctx context.Context, repoID uint64) error
 }

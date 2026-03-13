@@ -189,6 +189,87 @@ func TestArtifactStoreMissingBucketErrors(t *testing.T) {
 	})
 }
 
+func TestArtifactStoreGetByRepoAndName(t *testing.T) {
+	_, st := newTestStore(t)
+	as := st.Artifacts()
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	a1 := seedArtifact("v1.tar.gz", "/tmp/repo1/v1.tar.gz", 1, now)
+	a2 := seedArtifact("v2.tar.gz", "/tmp/repo1/v2.tar.gz", 1, now)
+	a3 := seedArtifact("v1.tar.gz", "/tmp/repo2/v1.tar.gz", 2, now)
+
+	for _, a := range []*store.Artifact{a1, a2, a3} {
+		if err := as.Create(ctx, a); err != nil {
+			t.Fatalf("create artifact: %v", err)
+		}
+	}
+
+	got, err := as.GetByRepoAndName(ctx, 1, "v1.tar.gz")
+	if err != nil {
+		t.Fatalf("GetByRepoAndName: %v", err)
+	}
+	if got.ID != a1.ID {
+		t.Fatalf("expected artifact ID %d, got %d", a1.ID, got.ID)
+	}
+
+	got, err = as.GetByRepoAndName(ctx, 2, "v1.tar.gz")
+	if err != nil {
+		t.Fatalf("GetByRepoAndName repo2: %v", err)
+	}
+	if got.ID != a3.ID {
+		t.Fatalf("expected artifact ID %d, got %d", a3.ID, got.ID)
+	}
+
+	_, err = as.GetByRepoAndName(ctx, 1, "nonexistent")
+	if !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got: %v", err)
+	}
+
+	_, err = as.GetByRepoAndName(ctx, 99, "v1.tar.gz")
+	if !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for unknown repo, got: %v", err)
+	}
+}
+
+func TestArtifactStoreGetLatestByRepo(t *testing.T) {
+	_, st := newTestStore(t)
+	as := st.Artifacts()
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	a1 := seedArtifact("v1.tar.gz", "/tmp/repo1/v1.tar.gz", 1, now)
+	a2 := seedArtifact("v2.tar.gz", "/tmp/repo1/v2.tar.gz", 1, now)
+	a3 := seedArtifact("other.tar.gz", "/tmp/repo2/other.tar.gz", 2, now)
+
+	for _, a := range []*store.Artifact{a1, a2, a3} {
+		if err := as.Create(ctx, a); err != nil {
+			t.Fatalf("create artifact: %v", err)
+		}
+	}
+
+	got, err := as.GetLatestByRepo(ctx, 1)
+	if err != nil {
+		t.Fatalf("GetLatestByRepo: %v", err)
+	}
+	if got.ID != a2.ID {
+		t.Fatalf("expected latest to be %d (v2), got %d", a2.ID, got.ID)
+	}
+
+	got, err = as.GetLatestByRepo(ctx, 2)
+	if err != nil {
+		t.Fatalf("GetLatestByRepo repo2: %v", err)
+	}
+	if got.ID != a3.ID {
+		t.Fatalf("expected latest to be %d, got %d", a3.ID, got.ID)
+	}
+
+	_, err = as.GetLatestByRepo(ctx, 99)
+	if !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for empty repo, got: %v", err)
+	}
+}
+
 func TestArtifactStoreListSkipsUnexpectedKeys(t *testing.T) {
 	db, st := newTestStore(t)
 	as := st.Artifacts()
