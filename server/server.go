@@ -11,16 +11,17 @@ import (
 )
 
 type Server struct {
-	listener net.Listener
-	dataDir  string
-	db       store.Store
-	srv      *http.Server
+	listener      net.Listener
+	dataDir       string
+	db            store.Store
+	maxUploadSize int64
+	srv           *http.Server
 }
 
-func NewServer(dataDir string, listener net.Listener, db store.Store) (*Server, error) {
+func NewServer(dataDir string, listener net.Listener, db store.Store, maxUploadSize int64) (*Server, error) {
 	baseLogger := slog.Default().With("server", "api")
 
-	mux := createMux(db, dataDir)
+	mux := createMux(db, dataDir, maxUploadSize)
 
 	h := RecoverMiddleware( // recover panics
 		RequestID( // add request id
@@ -34,10 +35,10 @@ func NewServer(dataDir string, listener net.Listener, db store.Store) (*Server, 
 		Handler: h,
 	}
 
-	return &Server{dataDir: dataDir, listener: listener, db: db, srv: srv}, nil
+	return &Server{dataDir: dataDir, listener: listener, db: db, maxUploadSize: maxUploadSize, srv: srv}, nil
 }
 
-func createMux(db store.Store, dataDir string) *http.ServeMux {
+func createMux(db store.Store, dataDir string, maxUploadSize int64) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /ping", handler.Ping)
@@ -48,7 +49,7 @@ func createMux(db store.Store, dataDir string) *http.ServeMux {
 
 	mux.Handle("GET /{repoName}", authRead(handler.ListArtifacts(db.Repos(), db.Artifacts())))
 	mux.Handle("GET /{repoName}/{artifactName}", authRead(handler.DownloadArtifact(db.Repos(), db.Artifacts(), dataDir)))
-	mux.Handle("PUT /{repoName}/{artifactName}", authWrite(handler.UploadArtifact(db.Repos(), db.Artifacts(), dataDir)))
+	mux.Handle("PUT /{repoName}/{artifactName}", authWrite(handler.UploadArtifact(db.Repos(), db.Artifacts(), dataDir, maxUploadSize)))
 
 	return mux
 }

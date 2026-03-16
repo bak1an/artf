@@ -89,7 +89,7 @@ func DownloadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, data
 	}
 }
 
-func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDir string) http.HandlerFunc {
+func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDir string, maxUploadSize int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := ctxlog.From(r.Context())
 		repoName := r.PathValue("repoName")
@@ -113,6 +113,17 @@ func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDi
 		repoDir := filepath.Join(dataDir, repo.Path)
 		finalPath := filepath.Join(repoDir, artifactName)
 
+		if _, err := artifacts.GetByRepoAndName(r.Context(), repo.ID, artifactName); err == nil {
+			jsonError(w, "artifact already exists", http.StatusConflict)
+			return
+		} else if !errors.Is(err, store.ErrNotFound) {
+			logger.Error("failed to check artifact existence", "error", err)
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+
 		tmp, err := os.CreateTemp(repoDir, ".upload-*")
 		if err != nil {
 			logger.Error("failed to create temp file", "error", err)
@@ -124,6 +135,11 @@ func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDi
 		if _, err := io.Copy(tmp, r.Body); err != nil {
 			tmp.Close()
 			os.Remove(tmpName)
+			var maxErr *http.MaxBytesError
+			if errors.As(err, &maxErr) {
+				jsonError(w, "request body too large", http.StatusRequestEntityTooLarge)
+				return
+			}
 			logger.Error("failed to write upload", "error", err)
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return

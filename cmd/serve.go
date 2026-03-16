@@ -35,6 +35,11 @@ var serveCmd = &cobra.Command{
 
 		cmd.SilenceUsage = true
 
+		maxUploadSize, err := resolveMaxUploadSize(viper.GetViper())
+		if err != nil {
+			return fmt.Errorf("invalid max upload size: %w", err)
+		}
+
 		bboltDB, err := openDatabase(data)
 		if err != nil {
 			return fmt.Errorf("failed to open database: %w", err)
@@ -59,7 +64,7 @@ var serveCmd = &cobra.Command{
 			return fmt.Errorf("failed to get listener: %w", err)
 		}
 
-		srv, err := server.NewServer(data, listener, db)
+		srv, err := server.NewServer(data, listener, db, maxUploadSize)
 		if err != nil {
 			return fmt.Errorf("failed to initialize server: %w", err)
 		}
@@ -121,6 +126,11 @@ func init() {
 	serveCmd.Flags().Bool("systemd", false, "use systemd socket activation (replaces host and port flags)")
 	serveCmd.Flags().StringP("host", "H", "127.0.0.1", "host to listen on (ignored if systemd is used)")
 	serveCmd.Flags().IntP("port", "P", 8365, "port to listen on (ignored if systemd is used)")
+	serveCmd.Flags().String(maxUploadSizeKey, defaultMaxUploadSize, "maximum upload size in bytes or with k, m, g suffixes")
+
+	if err := viper.BindEnv(maxUploadSizeKey, "ARTF_MAX_UPLOAD_SIZE"); err != nil {
+		panic(err)
+	}
 
 	rootCmd.AddCommand(serveCmd)
 }

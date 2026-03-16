@@ -216,6 +216,9 @@ func TestUploadArtifact(t *testing.T) {
 			},
 		}
 		artifacts := &mock.MockArtifactStore{
+			GetByRepoAndNameFn: func(_ context.Context, _ uint64, _ string) (*store.Artifact, error) {
+				return nil, store.ErrNotFound
+			},
 			CreateFn: func(_ context.Context, a *store.Artifact) error {
 				a.ID = 1
 				return nil
@@ -227,7 +230,7 @@ func TestUploadArtifact(t *testing.T) {
 		r.SetPathValue("artifactName", "v1.tar.gz")
 		w := httptest.NewRecorder()
 
-		UploadArtifact(repos, artifacts, dataDir)(w, r)
+		UploadArtifact(repos, artifacts, dataDir, 1024)(w, r)
 
 		if w.Code != http.StatusCreated {
 			t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -256,7 +259,7 @@ func TestUploadArtifact(t *testing.T) {
 		r.SetPathValue("artifactName", "latest")
 		w := httptest.NewRecorder()
 
-		UploadArtifact(&mock.MockRepoStore{}, &mock.MockArtifactStore{}, t.TempDir())(w, r)
+		UploadArtifact(&mock.MockRepoStore{}, &mock.MockArtifactStore{}, t.TempDir(), 1024)(w, r)
 
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d", w.Code)
@@ -269,7 +272,7 @@ func TestUploadArtifact(t *testing.T) {
 		r.SetPathValue("artifactName", "bad name")
 		w := httptest.NewRecorder()
 
-		UploadArtifact(&mock.MockRepoStore{}, &mock.MockArtifactStore{}, t.TempDir())(w, r)
+		UploadArtifact(&mock.MockRepoStore{}, &mock.MockArtifactStore{}, t.TempDir(), 1024)(w, r)
 
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d", w.Code)
@@ -288,7 +291,7 @@ func TestUploadArtifact(t *testing.T) {
 		r.SetPathValue("artifactName", "v1.tar.gz")
 		w := httptest.NewRecorder()
 
-		UploadArtifact(repos, &mock.MockArtifactStore{}, t.TempDir())(w, r)
+		UploadArtifact(repos, &mock.MockArtifactStore{}, t.TempDir(), 1024)(w, r)
 
 		if w.Code != http.StatusNotFound {
 			t.Fatalf("expected 404, got %d", w.Code)
@@ -306,6 +309,9 @@ func TestUploadArtifact(t *testing.T) {
 			},
 		}
 		artifacts := &mock.MockArtifactStore{
+			GetByRepoAndNameFn: func(_ context.Context, _ uint64, _ string) (*store.Artifact, error) {
+				return nil, store.ErrNotFound
+			},
 			CreateFn: func(_ context.Context, _ *store.Artifact) error {
 				return errors.New("db error")
 			},
@@ -316,7 +322,7 @@ func TestUploadArtifact(t *testing.T) {
 		r.SetPathValue("artifactName", "v1.tar.gz")
 		w := httptest.NewRecorder()
 
-		UploadArtifact(repos, artifacts, dataDir)(w, r)
+		UploadArtifact(repos, artifacts, dataDir, 1024)(w, r)
 
 		if w.Code != http.StatusInternalServerError {
 			t.Fatalf("expected 500, got %d", w.Code)
@@ -324,6 +330,127 @@ func TestUploadArtifact(t *testing.T) {
 
 		if _, err := os.Stat(filepath.Join(repoDir, "v1.tar.gz")); !os.IsNotExist(err) {
 			t.Fatal("expected file to be cleaned up after db error")
+		}
+	})
+
+	t.Run("duplicate upload returns conflict without overwrite", func(t *testing.T) {
+		dataDir := t.TempDir()
+		repoDir := filepath.Join(dataDir, "repos", "myrepo")
+		if err := os.MkdirAll(repoDir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(repoDir, "v1.tar.gz"), []byte("existing-data"), 0o644); err != nil {
+			t.Fatalf("write existing file: %v", err)
+		}
+
+		repos := &mock.MockRepoStore{
+			GetByNameFn: func(_ context.Context, _ string) (*store.Repo, error) {
+				return &store.Repo{ID: 1, Name: "myrepo", Path: "repos/myrepo"}, nil
+			},
+		}
+		artifacts := &mock.MockArtifactStore{
+			GetByRepoAndNameFn: func(_ context.Context, _ uint64, _ string) (*store.Artifact, error) {
+				return &store.Artifact{ID: 1, Name: "v1.tar.gz"}, nil
+			},
+			CreateFn: func(_ context.Context, _ *store.Artifact) error {
+				t.Fatal("Create should not be called for duplicate uploads")
+				return nil
+			},
+		}
+
+		r := httptest.NewRequest("PUT", "/myrepo/v1.tar.gz", strings.NewReader("new-data"))
+		r.SetPathValue("repoName", "myrepo")
+		r.SetPathValue("artifactName", "v1.tar.gz")
+		w := httptest.NewRecorder()
+
+		UploadArtifact(repos, artifacts, dataDir, 1024)(w, r)
+
+		if w.Code != http.StatusConflict {
+			t.Fatalf("expected 409, got %d", w.Code)
+		}
+
+		data, err := os.ReadFile(filepath.Join(repoDir, "v1.tar.gz"))
+		if err != nil {
+			t.Fatalf("read file: %v", err)
+		}
+		if string(data) != "existing-data" {
+			t.Fatalf("unexpected file content: %q", string(data))
+		}
+	})
+
+	t.Run("artifact existence check error", func(t *testing.T) {
+		dataDir := t.TempDir()
+		repoDir := filepath.Join(dataDir, "repos", "myrepo")
+		if err := os.MkdirAll(repoDir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+
+		repos := &mock.MockRepoStore{
+			GetByNameFn: func(_ context.Context, _ string) (*store.Repo, error) {
+				return &store.Repo{ID: 1, Name: "myrepo", Path: "repos/myrepo"}, nil
+			},
+		}
+		artifacts := &mock.MockArtifactStore{
+			GetByRepoAndNameFn: func(_ context.Context, _ uint64, _ string) (*store.Artifact, error) {
+				return nil, errors.New("db error")
+			},
+		}
+
+		r := httptest.NewRequest("PUT", "/myrepo/v1.tar.gz", strings.NewReader("data"))
+		r.SetPathValue("repoName", "myrepo")
+		r.SetPathValue("artifactName", "v1.tar.gz")
+		w := httptest.NewRecorder()
+
+		UploadArtifact(repos, artifacts, dataDir, 1024)(w, r)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", w.Code)
+		}
+	})
+
+	t.Run("request too large", func(t *testing.T) {
+		dataDir := t.TempDir()
+		repoDir := filepath.Join(dataDir, "repos", "myrepo")
+		if err := os.MkdirAll(repoDir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+
+		repos := &mock.MockRepoStore{
+			GetByNameFn: func(_ context.Context, _ string) (*store.Repo, error) {
+				return &store.Repo{ID: 1, Name: "myrepo", Path: "repos/myrepo"}, nil
+			},
+		}
+		artifacts := &mock.MockArtifactStore{
+			GetByRepoAndNameFn: func(_ context.Context, _ uint64, _ string) (*store.Artifact, error) {
+				return nil, store.ErrNotFound
+			},
+			CreateFn: func(_ context.Context, _ *store.Artifact) error {
+				t.Fatal("Create should not be called for oversized uploads")
+				return nil
+			},
+		}
+
+		r := httptest.NewRequest("PUT", "/myrepo/v1.tar.gz", strings.NewReader("12345"))
+		r.SetPathValue("repoName", "myrepo")
+		r.SetPathValue("artifactName", "v1.tar.gz")
+		w := httptest.NewRecorder()
+
+		UploadArtifact(repos, artifacts, dataDir, 4)(w, r)
+
+		if w.Code != http.StatusRequestEntityTooLarge {
+			t.Fatalf("expected 413, got %d", w.Code)
+		}
+
+		if _, err := os.Stat(filepath.Join(repoDir, "v1.tar.gz")); !os.IsNotExist(err) {
+			t.Fatal("expected final file to not exist after oversized upload")
+		}
+
+		entries, err := os.ReadDir(repoDir)
+		if err != nil {
+			t.Fatalf("read dir: %v", err)
+		}
+		if len(entries) != 0 {
+			t.Fatalf("expected temp files to be cleaned up, found %d entries", len(entries))
 		}
 	})
 }

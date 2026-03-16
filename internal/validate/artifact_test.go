@@ -25,8 +25,10 @@ func TestArtifactName(t *testing.T) {
 		{"slash", "my/artifact", ErrArtifactNameInvalid},
 		{"backslash", `my\artifact`, ErrArtifactNameInvalid},
 		{"space", "my artifact", ErrArtifactNameInvalid},
+		{"leading space", " foo", ErrArtifactNameInvalid},
+		{"trailing space", "foo ", ErrArtifactNameInvalid},
 		{"reserved latest", "latest", ErrArtifactNameReserved},
-		{"latest with spaces", " latest ", ErrArtifactNameReserved},
+		{"latest with spaces", " latest ", ErrArtifactNameInvalid},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
