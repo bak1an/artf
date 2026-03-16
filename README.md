@@ -18,6 +18,8 @@ This starts the API server on `127.0.0.1:8365` and an admin server on a Unix soc
 
 Data is stored in `~/.artf/` by default, can be changed with ARTF_DATA env variable or `--data` when starting the server.
 
+Uploads are limited to `100m` by default. Override that with `--max-upload-size` or `ARTF_MAX_UPLOAD_SIZE`. Accepted suffixes are `k`, `m`, and `g`.
+
 ### 2. Create a repo
 
 ```bash
@@ -51,6 +53,8 @@ curl -H "Authorization: Bearer artf_..." \
   http://127.0.0.1:8365/my-builds
 ```
 
+Uploading the same artifact name twice returns `409 Conflict`. Uploads larger than the configured limit return `413 Payload Too Large`.
+
 ## CLI reference
 
 | Command | Description |
@@ -75,11 +79,12 @@ curl -H "Authorization: Bearer artf_..." \
 
 The serve command also accepts:
 
-| Flag | Default | Description |
+| Flag / Env var | Default | Description |
 |---|---|---|
 | `-H` / `--host` | `127.0.0.1` | Listen address |
 | `-P` / `--port` | `8365` | Listen port |
 | `--systemd` | off | Use systemd socket activation |
+| `--max-upload-size` / `ARTF_MAX_UPLOAD_SIZE` | `100m` | Maximum upload body size; accepts bytes or `k`, `m`, `g` suffixes |
 
 ## License
 
