@@ -26,7 +26,7 @@ Uploads are limited to `100m` by default. Override that with `--max-upload-size`
 artf repo new --name my-builds --keep-count 10 --keep-days 30
 ```
 
-`--keep-count` and `--keep-days` control artifact retention (0 = keep all).
+`--keep-count` and `--keep-days` control artifact retention (0 = keep all). See [Artifact cleanup](#artifact-cleanup) for details.
 
 ### 3. Edit repo settings
 
@@ -94,6 +94,14 @@ The serve command also accepts:
 | `-P` / `--port` | `8365` | Listen port |
 | `--systemd` | off | Use systemd socket activation |
 | `--max-upload-size` / `ARTF_MAX_UPLOAD_SIZE` | `100m` | Maximum upload body size; accepts bytes or `k`, `m`, `g` suffixes |
+
+## Artifact cleanup
+
+A background goroutine runs every 24 hours (and once at startup) to enforce the retention policies set on each repo:
+
+- **`keep-count` > 0**: keep the newest N artifacts, delete the rest. This takes priority over `keep-days`.
+- **`keep-count` = 0, `keep-days` > 0**: delete artifacts older than N days, but always keep at least the newest one.
+- **Both = 0**: no cleanup, all artifacts are kept.
 
 ## License
 

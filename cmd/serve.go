@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bak1an/artf/admin"
+	"github.com/bak1an/artf/cleanup"
 	"github.com/bak1an/artf/server"
 	"github.com/bak1an/artf/store/bblt"
 	"github.com/coreos/go-systemd/v22/activation"
@@ -86,6 +87,11 @@ var serveCmd = &cobra.Command{
 				serverErr <- err
 			}
 		}()
+
+		cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+		defer cleanupCancel()
+		cleaner := cleanup.New(db.Repos(), db.Artifacts(), data, slog.Default())
+		go cleaner.Run(cleanupCtx)
 
 		daemon.SdNotify(false, daemon.SdNotifyReady)
 
