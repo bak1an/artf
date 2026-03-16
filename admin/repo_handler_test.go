@@ -187,6 +187,167 @@ func TestGetRepoInfoHandler(t *testing.T) {
 	})
 }
 
+func TestUpdateRepoHandler(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+
+	t.Run("success update both fields", func(t *testing.T) {
+		var updatedRepo *store.Repo
+		rs := &mock.MockRepoStore{
+			GetFn: func(_ context.Context, id uint64) (*store.Repo, error) {
+				if id != 7 {
+					t.Fatalf("unexpected id: %d", id)
+				}
+				return &store.Repo{
+					ID:        7,
+					Name:      "my-repo",
+					Type:      store.RepoTypeFile,
+					Path:      "repos/my-repo",
+					KeepCount: 5,
+					KeepDays:  30,
+					CreatedAt: now.Add(-time.Hour),
+					UpdatedAt: now.Add(-time.Hour),
+				}, nil
+			},
+			UpdateFn: func(_ context.Context, repo *store.Repo) error {
+				updatedRepo = repo
+				return nil
+			},
+		}
+
+		keepCount := 10
+		keepDays := 60
+		body, _ := json.Marshal(RepoUpdateRequest{KeepCount: &keepCount, KeepDays: &keepDays})
+		req := httptest.NewRequest(http.MethodPatch, "/repos/7", bytes.NewReader(body))
+		req.SetPathValue("id", "7")
+		rr := httptest.NewRecorder()
+		h := updateRepoHandler(rs)
+		h.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+		}
+
+		if updatedRepo == nil {
+			t.Fatal("Update was not called")
+		}
+		if updatedRepo.KeepCount != 10 {
+			t.Fatalf("expected keep count 10, got %d", updatedRepo.KeepCount)
+		}
+		if updatedRepo.KeepDays != 60 {
+			t.Fatalf("expected keep days 60, got %d", updatedRepo.KeepDays)
+		}
+		if updatedRepo.UpdatedAt.Before(now) {
+			t.Fatalf("expected UpdatedAt to be updated, got %s", updatedRepo.UpdatedAt)
+		}
+
+		var resp Repo
+		if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if resp.KeepCount != 10 || resp.KeepDays != 60 {
+			t.Fatalf("unexpected response: %+v", resp)
+		}
+	})
+
+	t.Run("partial update keep_count only", func(t *testing.T) {
+		var updatedRepo *store.Repo
+		rs := &mock.MockRepoStore{
+			GetFn: func(_ context.Context, id uint64) (*store.Repo, error) {
+				return &store.Repo{
+					ID:        7,
+					Name:      "my-repo",
+					Type:      store.RepoTypeFile,
+					Path:      "repos/my-repo",
+					KeepCount: 5,
+					KeepDays:  30,
+					CreatedAt: now.Add(-time.Hour),
+					UpdatedAt: now.Add(-time.Hour),
+				}, nil
+			},
+			UpdateFn: func(_ context.Context, repo *store.Repo) error {
+				updatedRepo = repo
+				return nil
+			},
+		}
+
+		keepCount := 20
+		body, _ := json.Marshal(RepoUpdateRequest{KeepCount: &keepCount})
+		req := httptest.NewRequest(http.MethodPatch, "/repos/7", bytes.NewReader(body))
+		req.SetPathValue("id", "7")
+		rr := httptest.NewRecorder()
+		h := updateRepoHandler(rs)
+		h.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+		}
+		if updatedRepo.KeepCount != 20 {
+			t.Fatalf("expected keep count 20, got %d", updatedRepo.KeepCount)
+		}
+		if updatedRepo.KeepDays != 30 {
+			t.Fatalf("expected keep days to remain 30, got %d", updatedRepo.KeepDays)
+		}
+	})
+
+	t.Run("bad id", func(t *testing.T) {
+		h := updateRepoHandler(&mock.MockRepoStore{})
+		req := httptest.NewRequest(http.MethodPatch, "/repos/x", nil)
+		req.SetPathValue("id", "x")
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("repo not found", func(t *testing.T) {
+		rs := &mock.MockRepoStore{
+			GetFn: func(_ context.Context, _ uint64) (*store.Repo, error) {
+				return nil, store.ErrNotFound
+			},
+		}
+		body, _ := json.Marshal(RepoUpdateRequest{})
+		req := httptest.NewRequest(http.MethodPatch, "/repos/9", bytes.NewReader(body))
+		req.SetPathValue("id", "9")
+		rr := httptest.NewRecorder()
+		h := updateRepoHandler(rs)
+		h.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rr.Code)
+		}
+	})
+
+	t.Run("update error", func(t *testing.T) {
+		rs := &mock.MockRepoStore{
+			GetFn: func(_ context.Context, id uint64) (*store.Repo, error) {
+				return &store.Repo{
+					ID:        id,
+					Name:      "x",
+					Type:      store.RepoTypeFile,
+					Path:      "repos/x",
+					CreatedAt: now,
+					UpdatedAt: now,
+				}, nil
+			},
+			UpdateFn: func(_ context.Context, _ *store.Repo) error {
+				return errors.New("db write failed")
+			},
+		}
+		body, _ := json.Marshal(RepoUpdateRequest{})
+		req := httptest.NewRequest(http.MethodPatch, "/repos/9", bytes.NewReader(body))
+		req.SetPathValue("id", "9")
+		rr := httptest.NewRecorder()
+		h := updateRepoHandler(rs)
+		h.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rr.Code)
+		}
+	})
+}
+
 func TestCreateRepoHandlerInvalidName(t *testing.T) {
 	dir := t.TempDir()
 	rs := &mock.MockRepoStore{

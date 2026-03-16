@@ -28,7 +28,15 @@ artf repo new --name my-builds --keep-count 10 --keep-days 30
 
 `--keep-count` and `--keep-days` control artifact retention (0 = keep all).
 
-### 3. Create an API key
+### 3. Edit repo settings
+
+```bash
+artf repo edit my-builds --keep-count 20 --keep-days 60
+```
+
+Both flags are optional — omitted flags will prompt interactively with current values pre-filled.
+
+### 4. Create an API key
 
 ```bash
 artf key new --name ci --readonly=false
@@ -36,7 +44,7 @@ artf key new --name ci --readonly=false
 
 Save the key — it is only shown once.
 
-### 4. Upload and download artifacts
+### 5. Upload and download artifacts
 
 ```bash
 # Upload
@@ -63,6 +71,7 @@ Uploading the same artifact name twice returns `409 Conflict`. Uploads larger th
 | `artf repo new` | Create a repository |
 | `artf repo ls` | List repositories |
 | `artf repo info <name>` | Show repository details |
+| `artf repo edit [id or name]` | Edit repo retention settings |
 | `artf repo rm <name>` | Delete a repository |
 | `artf key new` | Create an API key |
 | `artf key ls` | List API keys |

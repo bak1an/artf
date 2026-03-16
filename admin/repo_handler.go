@@ -177,6 +177,64 @@ func getRepoInfoHandler(repoStore store.RepoStore, artifactStore store.ArtifactS
 	}
 }
 
+func updateRepoHandler(repoStore store.RepoStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger := ctxlog.From(r.Context())
+		idPath := r.PathValue("id")
+		id, err := strconv.ParseUint(idPath, 10, 64)
+		if err != nil {
+			logger.Error("failed to parse repo ID", "error", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var req RepoUpdateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			logger.Error("failed to decode request", "error", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		repo, err := repoStore.Get(r.Context(), id)
+		if err == store.ErrNotFound {
+			logger.Error("repo not found", "id", id)
+			http.Error(w, "repo not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			logger.Error("failed to get repo", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if req.KeepCount != nil {
+			repo.KeepCount = *req.KeepCount
+		}
+		if req.KeepDays != nil {
+			repo.KeepDays = *req.KeepDays
+		}
+		repo.UpdatedAt = time.Now()
+
+		if err := repoStore.Update(r.Context(), repo); err != nil {
+			logger.Error("failed to update repo", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		err = json.NewEncoder(w).Encode(Repo{
+			ID:        repo.ID,
+			Name:      repo.Name,
+			KeepCount: repo.KeepCount,
+			KeepDays:  repo.KeepDays,
+			CreatedAt: repo.CreatedAt,
+		})
+		if err != nil {
+			logger.Error("failed to encode response", "error", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func deleteRepoHandler(repoStore store.RepoStore, artifactStore store.ArtifactStore, dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := ctxlog.From(r.Context())

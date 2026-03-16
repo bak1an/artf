@@ -21,6 +21,11 @@ type RepoCreateRequest struct {
 	KeepDays  int    `json:"keep_days"`
 }
 
+type RepoUpdateRequest struct {
+	KeepCount *int `json:"keep_count"`
+	KeepDays  *int `json:"keep_days"`
+}
+
 type RepoInfo struct {
 	ID            uint64    `json:"id"`
 	Name          string    `json:"name"`

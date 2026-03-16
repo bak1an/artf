@@ -119,6 +119,27 @@ func (c *AdminClient) CreateRepo(name string, keepCount, keepDays int) (*Repo, e
 	return &resp, nil
 }
 
+func (c *AdminClient) UpdateRepo(id uint64, keepCount, keepDays *int) (*Repo, error) {
+	updateReq := RepoUpdateRequest{
+		KeepCount: keepCount,
+		KeepDays:  keepDays,
+	}
+	requestBody, err := json.Marshal(updateReq)
+	if err != nil {
+		return nil, err
+	}
+	body, err := c.request("PATCH", "/repos/"+strconv.FormatUint(id, 10), requestBody)
+	if err != nil {
+		return nil, err
+	}
+	var resp Repo
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 func (c *AdminClient) GetRepoInfo(id uint64) (*RepoInfoResponse, error) {
 	body, err := c.request("GET", "/repos/"+strconv.FormatUint(id, 10), nil)
 	if err != nil {
