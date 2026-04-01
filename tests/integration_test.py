@@ -112,6 +112,7 @@ def start_server(data_dir, port):
         cwd=PROJECT_ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        preexec_fn=os.setsid,
     )
     try:
         wait_for_server(port)
@@ -130,11 +131,18 @@ def start_server(data_dir, port):
 def stop_server(proc):
     if proc.poll() is not None:
         return
-    proc.send_signal(signal.SIGTERM)
+    try:
+        pgid = os.getpgid(proc.pid)
+        os.killpg(pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
     try:
         proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
-        proc.kill()
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except ProcessLookupError:
+            pass
         proc.wait(timeout=5)
 
 
