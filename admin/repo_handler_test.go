@@ -47,6 +47,7 @@ func TestGetRepoInfoHandler(t *testing.T) {
 						Name:      "v1.0.0.tar.gz",
 						RepoID:    7,
 						Path:      "repos/my-repo/v1.0.0.tar.gz",
+						SHA256:    "aaa111",
 						CreatedAt: now.Add(-2 * time.Minute),
 					},
 					{
@@ -54,6 +55,7 @@ func TestGetRepoInfoHandler(t *testing.T) {
 						Name:      "v1.0.1.tar.gz",
 						RepoID:    7,
 						Path:      "repos/my-repo/v1.0.1.tar.gz",
+						SHA256:    "bbb222",
 						CreatedAt: now.Add(-time.Minute),
 					},
 				}, nil
@@ -108,6 +110,12 @@ func TestGetRepoInfoHandler(t *testing.T) {
 		}
 		if resp.Artifacts[0].ID != 11 || resp.Artifacts[1].ID != 12 {
 			t.Fatalf("unexpected artifact ids: %+v", resp.Artifacts)
+		}
+		if resp.Artifacts[0].SHA256 != "aaa111" {
+			t.Fatalf("expected artifact 0 sha256 aaa111, got %q", resp.Artifacts[0].SHA256)
+		}
+		if resp.Artifacts[1].SHA256 != "bbb222" {
+			t.Fatalf("expected artifact 1 sha256 bbb222, got %q", resp.Artifacts[1].SHA256)
 		}
 	})
 

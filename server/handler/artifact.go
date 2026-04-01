@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -16,6 +18,7 @@ import (
 
 type artifactInfo struct {
 	Name      string    `json:"name"`
+	SHA256    string    `json:"sha256"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -47,7 +50,7 @@ func ListArtifacts(repos store.RepoStore, artifacts store.ArtifactStore) http.Ha
 
 		result := make([]artifactInfo, 0, len(list))
 		for _, a := range list {
-			result = append(result, artifactInfo{Name: a.Name, CreatedAt: a.CreatedAt})
+			result = append(result, artifactInfo{Name: a.Name, SHA256: a.SHA256, CreatedAt: a.CreatedAt})
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -85,6 +88,9 @@ func DownloadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, data
 			return
 		}
 
+		if artifact.SHA256 != "" {
+			w.Header().Set("X-Checksum-Sha256", artifact.SHA256)
+		}
 		http.ServeFile(w, r, filepath.Join(dataDir, artifact.Path))
 	}
 }
@@ -132,7 +138,8 @@ func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDi
 		}
 		tmpName := tmp.Name()
 
-		if _, err := io.Copy(tmp, r.Body); err != nil {
+		hasher := sha256.New()
+		if _, err := io.Copy(tmp, io.TeeReader(r.Body, hasher)); err != nil {
 			tmp.Close()
 			os.Remove(tmpName)
 			var maxErr *http.MaxBytesError
@@ -158,10 +165,13 @@ func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDi
 			return
 		}
 
+		checksum := hex.EncodeToString(hasher.Sum(nil))
+
 		artifact := &store.Artifact{
 			Name:      artifactName,
 			RepoID:    repo.ID,
 			Path:      repo.Path + "/" + artifactName,
+			SHA256:    checksum,
 			CreatedAt: time.Now().UTC(),
 		}
 
@@ -178,6 +188,6 @@ func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDi
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(artifactInfo{Name: artifact.Name, CreatedAt: artifact.CreatedAt})
+		json.NewEncoder(w).Encode(artifactInfo{Name: artifact.Name, SHA256: artifact.SHA256, CreatedAt: artifact.CreatedAt})
 	}
 }

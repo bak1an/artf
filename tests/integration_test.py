@@ -9,6 +9,7 @@ Usage:
     python tests/integration_test.py
 """
 
+import hashlib
 import http.client
 import json
 import os
@@ -57,7 +58,7 @@ def artf(*args):
 def api_request(method, path, token=None, body=None):
     """Send an HTTP request to the main API server.
 
-    Returns (status_code, response_body_bytes).
+    Returns (status_code, response_body_bytes, response_headers).
     """
     conn = http.client.HTTPConnection("127.0.0.1", PORT, timeout=10)
     headers = {}
@@ -72,13 +73,14 @@ def api_request(method, path, token=None, body=None):
     conn.endheaders(body)
     resp = conn.getresponse()
     data = resp.read()
+    resp_headers = dict(resp.getheaders())
     conn.close()
-    return resp.status, data
+    return resp.status, data, resp_headers
 
 
 def api_json(method, path, token=None, body=None):
     """Like api_request but parses JSON response body."""
-    status, data = api_request(method, path, token, body)
+    status, data, headers = api_request(method, path, token, body)
     try:
         parsed = json.loads(data)
     except (json.JSONDecodeError, ValueError):
@@ -176,7 +178,7 @@ def parse_key_id(name, ls_stdout):
 
 def test_ping_and_version():
     # HTTP ping
-    status, body = api_request("GET", "/ping")
+    status, body, _ = api_request("GET", "/ping")
     assert_eq(status, 200, "ping status")
     assert_in(b"pong", body, "ping body")
 
@@ -284,78 +286,90 @@ def test_admin_repo_crud():
 
 def test_auth_rejection():
     # No auth
-    status, body = api_request("GET", "/test-repo")
+    status, body, _ = api_request("GET", "/test-repo")
     assert_eq(status, 401, "no auth status")
     assert_in(b"unauthorized", body, "no auth body")
 
     # Bad token
-    status, body = api_request("GET", "/test-repo", token="invalid_token_here")
+    status, body, _ = api_request("GET", "/test-repo", token="invalid_token_here")
     assert_eq(status, 401, "bad token status")
     assert_in(b"unauthorized", body, "bad token body")
 
     # No auth on upload
-    status, body = api_request("PUT", "/test-repo/foo.tar.gz", body=b"data")
+    status, body, _ = api_request("PUT", "/test-repo/foo.tar.gz", body=b"data")
     assert_eq(status, 401, "no auth upload status")
 
     # Bad token on upload
-    status, body = api_request(
+    status, body, _ = api_request(
         "PUT", "/test-repo/foo.tar.gz", token="invalid_token_here", body=b"data"
     )
     assert_eq(status, 401, "bad token upload status")
     assert_in(b"unauthorized", body, "bad token upload body")
 
     # Upload with RO token
-    status, body = api_request(
+    status, body, _ = api_request(
         "PUT", "/test-repo/foo.tar.gz", token=RO_TOKEN, body=b"data"
     )
     assert_eq(status, 403, "ro token upload status")
     assert_in(b"forbidden", body, "ro token upload body")
 
     # Valid token should work
-    status, body = api_request("GET", "/test-repo", token=RW_TOKEN)
+    status, body, _ = api_request("GET", "/test-repo", token=RW_TOKEN)
     assert_eq(status, 200, "valid token status")
 
 
 def test_upload_download_list():
+    v1_content = b"content-v1"
+    v2_content = b"content-v2"
+    v1_sha256 = hashlib.sha256(v1_content).hexdigest()
+    v2_sha256 = hashlib.sha256(v2_content).hexdigest()
+
     # Upload two artifacts
     status, parsed, _ = api_json(
-        "PUT", "/test-repo/artifact-v1.tar.gz", token=RW_TOKEN, body=b"content-v1"
+        "PUT", "/test-repo/artifact-v1.tar.gz", token=RW_TOKEN, body=v1_content
     )
     assert_eq(status, 201, "upload v1 status")
     assert_eq(parsed["name"], "artifact-v1.tar.gz", "upload v1 name")
+    assert_eq(parsed["sha256"], v1_sha256, "upload v1 sha256")
 
     status, parsed, _ = api_json(
-        "PUT", "/test-repo/artifact-v2.tar.gz", token=RW_TOKEN, body=b"content-v2"
+        "PUT", "/test-repo/artifact-v2.tar.gz", token=RW_TOKEN, body=v2_content
     )
     assert_eq(status, 201, "upload v2 status")
     assert_eq(parsed["name"], "artifact-v2.tar.gz", "upload v2 name")
+    assert_eq(parsed["sha256"], v2_sha256, "upload v2 sha256")
 
-    # List artifacts
+    # List artifacts — verify sha256 is present
     status, parsed, _ = api_json("GET", "/test-repo", token=RW_TOKEN)
     assert_eq(status, 200, "list artifacts status")
     assert_eq(len(parsed), 2, "artifact count")
     names = {a["name"] for a in parsed}
     assert_in("artifact-v1.tar.gz", names, "v1 in list")
     assert_in("artifact-v2.tar.gz", names, "v2 in list")
+    sha_by_name = {a["name"]: a["sha256"] for a in parsed}
+    assert_eq(sha_by_name["artifact-v1.tar.gz"], v1_sha256, "list v1 sha256")
+    assert_eq(sha_by_name["artifact-v2.tar.gz"], v2_sha256, "list v2 sha256")
 
-    # Download and verify content
-    status, body = api_request("GET", "/test-repo/artifact-v1.tar.gz", token=RW_TOKEN)
+    # Download and verify content + X-Checksum-Sha256 header
+    status, body, headers = api_request("GET", "/test-repo/artifact-v1.tar.gz", token=RW_TOKEN)
     assert_eq(status, 200, "download v1 status")
-    assert_eq(body, b"content-v1", "download v1 content")
+    assert_eq(body, v1_content, "download v1 content")
+    assert_eq(headers.get("X-Checksum-Sha256"), v1_sha256, "download v1 sha256 header")
 
-    status, body = api_request("GET", "/test-repo/artifact-v2.tar.gz", token=RW_TOKEN)
+    status, body, headers = api_request("GET", "/test-repo/artifact-v2.tar.gz", token=RW_TOKEN)
     assert_eq(status, 200, "download v2 status")
-    assert_eq(body, b"content-v2", "download v2 content")
+    assert_eq(body, v2_content, "download v2 content")
+    assert_eq(headers.get("X-Checksum-Sha256"), v2_sha256, "download v2 sha256 header")
 
 
 def test_bad_auth_download():
     # Attempt to download with no auth
-    status, body = api_request("GET", "/test-repo/artifact-v1.tar.gz")
+    status, body, _ = api_request("GET", "/test-repo/artifact-v1.tar.gz")
     assert_eq(status, 401, "no auth download status")
     assert_in(b"unauthorized", body, "no auth download body")
 
     # Attempt to download with bad token
-    status, body = api_request(
+    status, body, _ = api_request(
         "GET", "/test-repo/artifact-v1.tar.gz", token="invalid_token_here"
     )
     assert_eq(status, 401, "bad token download status")
@@ -363,9 +377,11 @@ def test_bad_auth_download():
 
 
 def test_latest_download():
-    status, body = api_request("GET", "/test-repo/latest", token=RW_TOKEN)
+    status, body, headers = api_request("GET", "/test-repo/latest", token=RW_TOKEN)
     assert_eq(status, 200, "latest download status")
     assert_eq(body, b"content-v2", "latest should be v2")
+    expected_sha = hashlib.sha256(b"content-v2").hexdigest()
+    assert_eq(headers.get("X-Checksum-Sha256"), expected_sha, "latest sha256 header")
 
 
 def test_duplicate_upload():
@@ -378,14 +394,14 @@ def test_duplicate_upload():
 
 def test_readonly_key_upload():
     # Read operations with ro key should work
-    status, _ = api_request("GET", "/test-repo", token=RO_TOKEN)
+    status, _, _ = api_request("GET", "/test-repo", token=RO_TOKEN)
     assert_eq(status, 200, "ro key list status")
 
-    status, _ = api_request("GET", "/test-repo/artifact-v1.tar.gz", token=RO_TOKEN)
+    status, _, _ = api_request("GET", "/test-repo/artifact-v1.tar.gz", token=RO_TOKEN)
     assert_eq(status, 200, "ro key download status")
 
     # Write with ro key should be forbidden
-    status, body = api_request(
+    status, body, _ = api_request(
         "PUT", "/test-repo/new-artifact.tar.gz", token=RO_TOKEN, body=b"data"
     )
     assert_eq(status, 403, "ro key upload status")

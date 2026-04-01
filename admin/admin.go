@@ -43,6 +43,7 @@ type ArtifactInfo struct {
 	Name      string    `json:"name"`
 	RepoID    uint64    `json:"repo_id"`
 	Path      string    `json:"path"`
+	SHA256    string    `json:"sha256"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

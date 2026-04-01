@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -28,8 +30,8 @@ func TestListArtifacts(t *testing.T) {
 		artifacts := &mock.MockArtifactStore{
 			ListByRepoFn: func(_ context.Context, repoID uint64) ([]*store.Artifact, error) {
 				return []*store.Artifact{
-					{ID: 1, Name: "v1.tar.gz", CreatedAt: now},
-					{ID: 2, Name: "v2.tar.gz", CreatedAt: now},
+					{ID: 1, Name: "v1.tar.gz", SHA256: "abc123", CreatedAt: now},
+					{ID: 2, Name: "v2.tar.gz", SHA256: "def456", CreatedAt: now},
 				}, nil
 			},
 		}
@@ -50,6 +52,12 @@ func TestListArtifacts(t *testing.T) {
 		}
 		if len(result) != 2 {
 			t.Fatalf("expected 2 artifacts, got %d", len(result))
+		}
+		if result[0].SHA256 != "abc123" {
+			t.Fatalf("expected sha256 abc123, got %q", result[0].SHA256)
+		}
+		if result[1].SHA256 != "def456" {
+			t.Fatalf("expected sha256 def456, got %q", result[1].SHA256)
 		}
 	})
 
@@ -109,7 +117,7 @@ func TestDownloadArtifact(t *testing.T) {
 		}
 		artifacts := &mock.MockArtifactStore{
 			GetByRepoAndNameFn: func(_ context.Context, _ uint64, name string) (*store.Artifact, error) {
-				return &store.Artifact{ID: 1, Name: name, Path: "repos/myrepo/v1.tar.gz"}, nil
+				return &store.Artifact{ID: 1, Name: name, Path: "repos/myrepo/v1.tar.gz", SHA256: "abc123"}, nil
 			},
 		}
 
@@ -126,6 +134,9 @@ func TestDownloadArtifact(t *testing.T) {
 		if w.Body.String() != "file-content" {
 			t.Fatalf("unexpected body: %q", w.Body.String())
 		}
+		if got := w.Header().Get("X-Checksum-Sha256"); got != "abc123" {
+			t.Fatalf("expected X-Checksum-Sha256 abc123, got %q", got)
+		}
 	})
 
 	t.Run("latest resolves", func(t *testing.T) {
@@ -141,7 +152,7 @@ func TestDownloadArtifact(t *testing.T) {
 		}
 		artifacts := &mock.MockArtifactStore{
 			GetLatestByRepoFn: func(_ context.Context, _ uint64) (*store.Artifact, error) {
-				return &store.Artifact{ID: 2, Name: "v2.tar.gz", Path: "repos/myrepo/v2.tar.gz"}, nil
+				return &store.Artifact{ID: 2, Name: "v2.tar.gz", Path: "repos/myrepo/v2.tar.gz", SHA256: "def456"}, nil
 			},
 		}
 
@@ -157,6 +168,9 @@ func TestDownloadArtifact(t *testing.T) {
 		}
 		if w.Body.String() != "latest-content" {
 			t.Fatalf("unexpected body: %q", w.Body.String())
+		}
+		if got := w.Header().Get("X-Checksum-Sha256"); got != "def456" {
+			t.Fatalf("expected X-Checksum-Sha256 def456, got %q", got)
 		}
 	})
 
@@ -210,6 +224,11 @@ func TestUploadArtifact(t *testing.T) {
 		repoDir := filepath.Join(dataDir, "repos", "myrepo")
 		os.MkdirAll(repoDir, 0o755)
 
+		uploadContent := "upload-data"
+		h := sha256.Sum256([]byte(uploadContent))
+		expectedSHA := hex.EncodeToString(h[:])
+
+		var createdArtifact *store.Artifact
 		repos := &mock.MockRepoStore{
 			GetByNameFn: func(_ context.Context, _ string) (*store.Repo, error) {
 				return &store.Repo{ID: 1, Name: "myrepo", Path: "repos/myrepo"}, nil
@@ -221,11 +240,12 @@ func TestUploadArtifact(t *testing.T) {
 			},
 			CreateFn: func(_ context.Context, a *store.Artifact) error {
 				a.ID = 1
+				createdArtifact = a
 				return nil
 			},
 		}
 
-		r := httptest.NewRequest("PUT", "/myrepo/v1.tar.gz", strings.NewReader("upload-data"))
+		r := httptest.NewRequest("PUT", "/myrepo/v1.tar.gz", strings.NewReader(uploadContent))
 		r.SetPathValue("repoName", "myrepo")
 		r.SetPathValue("artifactName", "v1.tar.gz")
 		w := httptest.NewRecorder()
@@ -240,8 +260,15 @@ func TestUploadArtifact(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read file: %v", err)
 		}
-		if string(data) != "upload-data" {
+		if string(data) != uploadContent {
 			t.Fatalf("unexpected file content: %q", string(data))
+		}
+
+		if createdArtifact == nil {
+			t.Fatal("Create was not called")
+		}
+		if createdArtifact.SHA256 != expectedSHA {
+			t.Fatalf("expected artifact SHA256 %q, got %q", expectedSHA, createdArtifact.SHA256)
 		}
 
 		var result artifactInfo
@@ -250,6 +277,9 @@ func TestUploadArtifact(t *testing.T) {
 		}
 		if result.Name != "v1.tar.gz" {
 			t.Fatalf("unexpected name: %q", result.Name)
+		}
+		if result.SHA256 != expectedSHA {
+			t.Fatalf("expected response SHA256 %q, got %q", expectedSHA, result.SHA256)
 		}
 	})
 

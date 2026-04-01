@@ -165,6 +165,7 @@ func getRepoInfoHandler(repoStore store.RepoStore, artifactStore store.ArtifactS
 				Name:      artifact.Name,
 				RepoID:    artifact.RepoID,
 				Path:      artifact.Path,
+				SHA256:    artifact.SHA256,
 				CreatedAt: artifact.CreatedAt,
 			}
 		}

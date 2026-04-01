@@ -77,5 +77,6 @@ type Artifact struct {
 	Name      string
 	RepoID    uint64
 	Path      string // path to the artifact folder on the filesystem related to data directory
+	SHA256    string
 	CreatedAt time.Time
 }

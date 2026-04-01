@@ -137,6 +137,7 @@ func renderRepoInfo(info *admin.RepoInfoResponse, dataDir string) {
 			artifact.Name,
 			strconv.FormatUint(artifact.RepoID, 10),
 			path,
+			artifact.SHA256,
 			artifact.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
@@ -146,6 +147,7 @@ func renderRepoInfo(info *admin.RepoInfoResponse, dataDir string) {
 		{Title: "Name", Width: maxNameWidth + 2},
 		{Title: "RepoID", Width: 8},
 		{Title: "Path", Width: maxPathWidth + 2},
+		{Title: "SHA256", Width: 66},
 		{Title: "CreatedAt", Width: len(time.Now().Format("2006-01-02 15:04:05")) + 2},
 	}
 
