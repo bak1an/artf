@@ -41,6 +41,24 @@ func (b *bboltArtifactStore) Create(ctx context.Context, artifact *store.Artifac
 			return fmt.Errorf("artifacts bucket not found")
 		}
 
+		// Check uniqueness within the write transaction to prevent TOCTOU races.
+		dupErr := bucket.ForEach(func(k, v []byte) error {
+			if len(k) != 8 || v == nil {
+				return nil
+			}
+			var a store.Artifact
+			if err := gob.NewDecoder(bytes.NewReader(v)).Decode(&a); err != nil {
+				return err
+			}
+			if a.RepoID == artifact.RepoID && a.Name == artifact.Name {
+				return store.ErrAlreadyExists
+			}
+			return nil
+		})
+		if dupErr != nil {
+			return dupErr
+		}
+
 		nextID, err := bucket.NextSequence()
 		if err != nil {
 			return err

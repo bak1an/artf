@@ -7,6 +7,7 @@ import (
 )
 
 var ErrNotFound = errors.New("not found")
+var ErrAlreadyExists = errors.New("already exists")
 
 type RepoType string
 
