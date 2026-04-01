@@ -11,7 +11,7 @@ BUILDFLAGS=-trimpath
 
 .DEFAULT_GOAL := build
 
-.PHONY: fmt test vet nils check clean local-build linux-amd64-build linux-arm64-build dist-gzip dist-sha256 dist build
+.PHONY: fmt test vet nils check clean local-build linux-amd64-build linux-arm64-build dist-gzip dist-sha256 dist build integration
 
 fmt:
 	go fmt ./... && go tool goimports -w .
@@ -25,7 +25,10 @@ vet:
 nils:
 	go tool nilaway -test=false ./...
 
-check: vet nils test
+integration:
+	./tests/integration_test.py
+
+check: vet nils test integration
 
 clean:
 	if [ -f ${BINARY} ] ; then rm ${BINARY} ; fi
