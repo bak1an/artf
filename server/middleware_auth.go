@@ -29,7 +29,7 @@ func AuthMiddleware(keys store.APIKeyStore, readonly bool) func(http.Handler) ht
 			rawKey := bearerToken(r)
 			if rawKey == "" {
 				logger.Warn("auth: missing api key")
-				http.Error(w, "forbidden", http.StatusForbidden)
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
 
@@ -38,7 +38,7 @@ func AuthMiddleware(keys store.APIKeyStore, readonly bool) func(http.Handler) ht
 			key, err := keys.GetByKey(r.Context(), keyHash)
 			if err != nil {
 				logger.Warn("auth: invalid api key", "error", err)
-				http.Error(w, "forbidden", http.StatusForbidden)
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
 
