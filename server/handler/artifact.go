@@ -167,6 +167,10 @@ func UploadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, dataDi
 
 		if err := artifacts.Create(r.Context(), artifact); err != nil {
 			os.Remove(finalPath)
+			if errors.Is(err, store.ErrAlreadyExists) {
+				jsonError(w, "artifact already exists", http.StatusConflict)
+				return
+			}
 			logger.Error("failed to create artifact record", "error", err)
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
