@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"errors"
 	"fmt"
 
 	"github.com/bak1an/artf/internal/ctxlog"
 	"github.com/bak1an/artf/store"
 	"go.etcd.io/bbolt"
 )
+
+var errFound = errors.New("found")
 
 type bboltArtifactStore struct {
 	db *bbolt.DB
@@ -206,7 +209,7 @@ func (b *bboltArtifactStore) GetByRepoAndName(ctx context.Context, repoID uint64
 			return fmt.Errorf("artifacts bucket not found")
 		}
 
-		return bucket.ForEach(func(k, v []byte) error {
+		err := bucket.ForEach(func(k, v []byte) error {
 			if len(k) != 8 || v == nil {
 				return nil
 			}
@@ -216,9 +219,14 @@ func (b *bboltArtifactStore) GetByRepoAndName(ctx context.Context, repoID uint64
 			}
 			if a.RepoID == repoID && a.Name == name {
 				artifact = &a
+				return errFound
 			}
 			return nil
 		})
+		if err != nil && !errors.Is(err, errFound) {
+			return err
+		}
+		return nil
 	})
 
 	if err != nil {
