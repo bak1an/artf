@@ -56,6 +56,10 @@ curl -X PUT -H "Authorization: Bearer artf_..." \
 curl -H "Authorization: Bearer artf_..." \
   http://127.0.0.1:8365/my-builds/build.tar.gz -o build.tar.gz
 
+# Download the latest artifact
+curl -H "Authorization: Bearer artf_..." \
+  http://127.0.0.1:8365/my-builds/latest -o latest-build.tar.gz
+
 # List artifacts in a repo
 curl -H "Authorization: Bearer artf_..." \
   http://127.0.0.1:8365/my-builds
