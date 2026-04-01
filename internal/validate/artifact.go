@@ -16,6 +16,9 @@ func ArtifactName(name string) error {
 	if name == "latest" {
 		return ErrArtifactNameReserved
 	}
+	if name == "." || name == ".." {
+		return ErrArtifactNameInvalid
+	}
 	if name == "" {
 		return ErrArtifactNameInvalid
 	}

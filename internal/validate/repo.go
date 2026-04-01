@@ -19,6 +19,9 @@ func RepoName(name string) error {
 	if s == "" {
 		return ErrRepoNameInvalid
 	}
+	if s == "." || s == ".." {
+		return ErrRepoNameInvalid
+	}
 	if len(s) > MaxRepoNameLength {
 		return ErrRepoNameInvalid
 	}

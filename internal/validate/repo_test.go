@@ -19,6 +19,8 @@ func TestRepoName(t *testing.T) {
 		{"valid mixed", "repo1_foo-bar.2", nil},
 		{"valid single letter", "a", nil},
 		{"valid max length", strings.Repeat("a", MaxRepoNameLength), nil},
+		{"dot", ".", ErrRepoNameInvalid},
+		{"dotdot", "..", ErrRepoNameInvalid},
 		{"empty", "", ErrRepoNameInvalid},
 		{"whitespace only", "   ", ErrRepoNameInvalid},
 		{"leading space trimmed to valid", " myrepo", nil},

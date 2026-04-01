@@ -27,6 +27,8 @@ func TestArtifactName(t *testing.T) {
 		{"space", "my artifact", ErrArtifactNameInvalid},
 		{"leading space", " foo", ErrArtifactNameInvalid},
 		{"trailing space", "foo ", ErrArtifactNameInvalid},
+		{"dot", ".", ErrArtifactNameInvalid},
+		{"dotdot", "..", ErrArtifactNameInvalid},
 		{"reserved latest", "latest", ErrArtifactNameReserved},
 		{"latest with spaces", " latest ", ErrArtifactNameInvalid},
 	}
