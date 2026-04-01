@@ -85,16 +85,17 @@ func createRepoHandler(repoStore store.RepoStore, dataDir string) http.HandlerFu
 			UpdatedAt: now,
 		}
 
-		err = repoStore.Create(r.Context(), repo)
-		if err != nil {
-			logger.Error("failed to create repo", "error", err)
+		repoDir := filepath.Join(dataDir, repo.Path)
+		if err := os.MkdirAll(repoDir, 0770); err != nil {
+			logger.Error("failed to create repo directory", "error", err, "dir", repoDir)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		repoDir := filepath.Join(dataDir, repo.Path)
-		if err := os.MkdirAll(repoDir, 0770); err != nil {
-			logger.Error("failed to create repo directory", "error", err, "dir", repoDir)
+		err = repoStore.Create(r.Context(), repo)
+		if err != nil {
+			os.Remove(repoDir)
+			logger.Error("failed to create repo", "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
