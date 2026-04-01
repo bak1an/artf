@@ -23,6 +23,8 @@ Run a single test:
 go test -v -run TestName ./path/to/package/...
 ```
 
+Integration coverage also lives in `tests/integration_test.py`.
+
 CI enforces: `make fmt` (no diff), then `make check`.
 
 ## Architecture
