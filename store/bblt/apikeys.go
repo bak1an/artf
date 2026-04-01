@@ -137,7 +137,7 @@ func (b *bboltAPIKeyStore) Get(ctx context.Context, id uint64) (*store.APIKey, e
 // GetByKey implements [store.APIKeyStore].
 func (b *bboltAPIKeyStore) GetByKey(ctx context.Context, keyHash []byte) (*store.APIKey, error) {
 	logger := ctxlog.From(ctx)
-	logger.Info("getting API key by key hash", "keyHash", keyHash)
+	logger.Debug("getting API key by key hash")
 
 	var key *store.APIKey
 
