@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -91,6 +92,7 @@ func DownloadArtifact(repos store.RepoStore, artifacts store.ArtifactStore, data
 		if artifact.SHA256 != "" {
 			w.Header().Set("X-Checksum-Sha256", artifact.SHA256)
 		}
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", artifact.Name))
 		http.ServeFile(w, r, filepath.Join(dataDir, artifact.Path))
 	}
 }

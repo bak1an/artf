@@ -137,6 +137,9 @@ func TestDownloadArtifact(t *testing.T) {
 		if got := w.Header().Get("X-Checksum-Sha256"); got != "abc123" {
 			t.Fatalf("expected X-Checksum-Sha256 abc123, got %q", got)
 		}
+		if got := w.Header().Get("Content-Disposition"); got != `attachment; filename="v1.tar.gz"` {
+			t.Fatalf("expected Content-Disposition with filename, got %q", got)
+		}
 	})
 
 	t.Run("latest resolves", func(t *testing.T) {
@@ -171,6 +174,9 @@ func TestDownloadArtifact(t *testing.T) {
 		}
 		if got := w.Header().Get("X-Checksum-Sha256"); got != "def456" {
 			t.Fatalf("expected X-Checksum-Sha256 def456, got %q", got)
+		}
+		if got := w.Header().Get("Content-Disposition"); got != `attachment; filename="v2.tar.gz"` {
+			t.Fatalf("expected Content-Disposition with filename, got %q", got)
 		}
 	})
 

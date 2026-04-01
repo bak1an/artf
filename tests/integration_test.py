@@ -355,11 +355,13 @@ def test_upload_download_list():
     assert_eq(status, 200, "download v1 status")
     assert_eq(body, v1_content, "download v1 content")
     assert_eq(headers.get("X-Checksum-Sha256"), v1_sha256, "download v1 sha256 header")
+    assert_eq(headers.get("Content-Disposition"), 'attachment; filename="artifact-v1.tar.gz"', "download v1 content-disposition")
 
     status, body, headers = api_request("GET", "/test-repo/artifact-v2.tar.gz", token=RW_TOKEN)
     assert_eq(status, 200, "download v2 status")
     assert_eq(body, v2_content, "download v2 content")
     assert_eq(headers.get("X-Checksum-Sha256"), v2_sha256, "download v2 sha256 header")
+    assert_eq(headers.get("Content-Disposition"), 'attachment; filename="artifact-v2.tar.gz"', "download v2 content-disposition")
 
 
 def test_bad_auth_download():
@@ -382,6 +384,7 @@ def test_latest_download():
     assert_eq(body, b"content-v2", "latest should be v2")
     expected_sha = hashlib.sha256(b"content-v2").hexdigest()
     assert_eq(headers.get("X-Checksum-Sha256"), expected_sha, "latest sha256 header")
+    assert_eq(headers.get("Content-Disposition"), 'attachment; filename="artifact-v2.tar.gz"', "latest content-disposition")
 
 
 def test_duplicate_upload():
