@@ -97,12 +97,18 @@ func (s *AdminServer) Close() error {
 }
 
 func cleanSocket(socketPath string) error {
-	if _, err := os.Stat(socketPath); err == nil || !os.IsNotExist(err) {
-		slog.Debug("removing existing socket file", "socket", socketPath)
-		err := os.Remove(socketPath)
-		if err != nil {
-			return fmt.Errorf("cannot remove socket file: %w", err)
-		}
+	_, err := os.Stat(socketPath)
+	if os.IsNotExist(err) {
+		slog.Debug("socket file does not exist, no need to remove", "socket", socketPath)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	slog.Debug("removing existing socket file", "socket", socketPath)
+	err = os.Remove(socketPath)
+	if err != nil {
+		return fmt.Errorf("cannot remove socket file: %w", err)
 	}
 	return nil
 }
