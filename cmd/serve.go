@@ -8,19 +8,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/bak1an/artf/admin"
 	"github.com/bak1an/artf/cleanup"
 	"github.com/bak1an/artf/server"
-	"github.com/bak1an/artf/store/bblt"
+	"github.com/bak1an/artf/store/sqlite"
 	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.etcd.io/bbolt"
 )
 
 const (
@@ -41,17 +39,9 @@ var serveCmd = &cobra.Command{
 			return fmt.Errorf("invalid max upload size: %w", err)
 		}
 
-		bboltDB, err := openDatabase(data)
+		db, err := sqlite.OpenAndMigrate(cmd.Context(), data, slog.Default())
 		if err != nil {
 			return fmt.Errorf("failed to open database: %w", err)
-		}
-
-		db, err := bblt.NewBboltStore(bboltDB)
-		if err != nil {
-			if err := bboltDB.Close(); err != nil {
-				slog.Error("failed to close database after error", "error", err)
-			}
-			return fmt.Errorf("failed to initialize database: %w", err)
 		}
 		defer db.Close()
 
@@ -177,14 +167,4 @@ func systemdListener() (net.Listener, error) {
 	}
 
 	return listeners[0], nil
-}
-
-func openDatabase(data string) (*bbolt.DB, error) {
-	dbPath := filepath.Join(data, dbFilename)
-	slog.Info("opening database", "path", dbPath)
-	db, err := bbolt.Open(dbPath, dbFileMode, &bbolt.Options{Timeout: dbOpenTimeout})
-	if err != nil {
-		return nil, fmt.Errorf("cannot open database: %w", err)
-	}
-	return db, nil
 }

@@ -38,7 +38,11 @@ Both support graceful shutdown via SIGINT/SIGTERM with a 10-second timeout and s
 
 ### Data Layer (`store/`)
 
-Interface-based storage defined in `store/store.go`. Current implementation: BBolt embedded DB (`store/bblt/`) at `~/.artf/artf0.db` (0600 perms). Buckets: `apiKeys`, `repos`, `index`. IDs are `uint64` via BBolt sequences. Encoding: `encoding/gob`. Secondary indexes live in the `index` bucket for O(1) lookups by hash/name/path.
+Interface-based storage defined in `store/store.go`. Current implementation: SQLite via pure-Go `modernc.org/sqlite` (`store/sqlite/`) at `~/.artf/artf1.db` (0600 perms, with WAL/SHM sidecars). Tables: `api_keys`, `repos`, `artifacts`, plus `versions` for schema migrations. IDs are `INTEGER PRIMARY KEY` (cast to/from `uint64` at the Go boundary). Timestamps stored as unix nanoseconds. PRAGMAs applied on open: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`, `synchronous=NORMAL`.
+
+Schema changes go through an in-house migration framework in `store/sqlite/migrations.go`: an append-only `[]Migration{ID, SQL}` list is applied on every `Open` inside per-migration transactions, tracked in the `versions` table. Never edit or renumber a shipped migration — add a new one.
+
+The legacy BBolt implementation in `store/bblt/` is deprecated and retained only so `store/sqlite/migrate.go` can perform the one-time bbolt→sqlite copy when `artf0.db` exists and `artf1.db` does not. After migration the old file is left on disk untouched.
 
 ### Authentication (`internal/auth/`, `server/middleware_auth.go`)
 

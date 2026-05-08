@@ -5,16 +5,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-)
-
-const (
-	dbFilename    = "artf0.db"
-	dbFileMode    = 0600
-	dbOpenTimeout = 5 * time.Second
 )
 
 var rootCmd = &cobra.Command{

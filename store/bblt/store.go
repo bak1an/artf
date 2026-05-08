@@ -1,3 +1,8 @@
+// Package bblt is the legacy bbolt-backed implementation of store.Store.
+//
+// Deprecated: retained only so the one-time bbolt→sqlite migration in
+// store/sqlite can read the legacy artf0.db. New code should use store/sqlite.
+// Scheduled for removal once all deployments have migrated.
 package bblt
 
 import (
@@ -15,6 +20,13 @@ var (
 	indexBucket     = []byte("index")
 	artifactsBucket = []byte("artifacts")
 )
+
+// NewBboltStoreReadOnly wraps an already-opened read-only bbolt handle without
+// touching any buckets. Intended only for the migration path in store/sqlite,
+// which only calls List/Get methods on the returned store.
+func NewBboltStoreReadOnly(db *bbolt.DB) store.Store {
+	return &bboltStore{db: db}
+}
 
 func NewBboltStore(db *bbolt.DB) (store.Store, error) {
 	err := db.Update(func(tx *bbolt.Tx) error {
